@@ -4,7 +4,7 @@ import cv2
 import argparse
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+# from tqdm import tqdm
 
 def analyze_image_for_barlines(image_path):
     """ 
@@ -53,7 +53,7 @@ def process_dataset(json_directory, segmentation_directory):
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.json')]
     output_directory = json_directory
     
-    for json_file in tqdm(json_files):
+    for json_file in json_files:
         with open(os.path.join(json_directory, json_file), 'r') as file:
             data = json.load(file)
             images_df = pd.DataFrame(data['images'])
@@ -72,7 +72,7 @@ def process_dataset(json_directory, segmentation_directory):
         
         ann_id = -1
         # Process each image
-        for filename in tqdm(filenames):
+        for filename in filenames:
             file_path = os.path.join(segmentation_directory,
                                      filename.replace('.png','_seg.png'))
             annotations = analyze_image_for_barlines(file_path)
