@@ -49,8 +49,9 @@ def analyze_image_for_barlines(image_path):
     # Create a DataFrame from the collected data
     return pd.DataFrame(data)
 
-def process_dataset(json_directory, segmentation_directory, output_directory):
+def process_dataset(json_directory, segmentation_directory):
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.json')]
+    output_directory = json_directory
     
     for json_file in tqdm(json_files):
         with open(os.path.join(json_directory, json_file), 'r') as file:
@@ -96,11 +97,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process datasets to find barlines.')
     parser.add_argument('json_directory', type=str, help='Directory containing JSON files.')
     parser.add_argument('segmentation_directory', type=str, help='Directory containing segmented images.')
-    parser.add_argument('output_directory', type=str, help='Output directory for CSV files.')
     
     args = parser.parse_args()
     
     process_dataset(args.json_directory, 
-                    args.segmentation_directory, 
-                    args.output_directory)
+                    args.segmentation_directory)
 
