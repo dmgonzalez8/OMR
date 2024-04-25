@@ -52,7 +52,8 @@ def analyze_image_for_barlines(image_path):
 def process_dataset(json_directory, segmentation_directory):
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.json')]
     output_directory = json_directory
-    
+
+    counter = 0
     for json_file in json_files:
         with open(os.path.join(json_directory, json_file), 'r') as file:
             data = json.load(file)
@@ -91,6 +92,8 @@ def process_dataset(json_directory, segmentation_directory):
         # Save all collected barline data to CSV after processing all files
         if not barlines_data.empty:
             barlines_data.to_csv(output_path, index=False)
+        counter += 1
+        print(f'Processed {counter} of {len(json_files)}: {json_file}')
 
 
 if __name__ == "__main__":
@@ -102,4 +105,3 @@ if __name__ == "__main__":
     
     process_dataset(args.json_directory, 
                     args.segmentation_directory)
-
