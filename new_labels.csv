@@ -207,3 +207,4 @@ old_index,old_id,name,dataset,color,label
 207,136,ottavaBracket,deepscores,166,154
 205,135,staff,deepscores,165,155
 206,208,staff,muscima++,165,155
+300,300,barline,n/a,300,156
