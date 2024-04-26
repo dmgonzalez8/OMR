@@ -224,7 +224,7 @@ def apply_skew(image_path_or_bin, bounding_boxes,
 
     return warped_image, new_bounding_boxes # this is a PIL image
 
-def apply_keystone(image_path_or_bin, bounding_boxes, max_skew_factor=0.05):
+def apply_warp(image_path_or_bin, bounding_boxes, max_skew_factor=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
         image = cv2.imread(image_path_or_bin)
@@ -279,6 +279,14 @@ def apply_keystone(image_path_or_bin, bounding_boxes, max_skew_factor=0.05):
     return warped_image_pil, new_bounding_boxes
 
 def resize_image(image_path_or_bin, bounding_boxes, ratio ... ):
+    # Load the image
+    if type(image_path_or_bin) is str:
+        image = cv2.imread(image_path_or_bin)
+    else: # convert PIL to CV2
+        image_array = np.array(image_path_or_bin.convert('RGB'))
+        image = image_array[:, :, ::-1]
+
+    ## you might need to update the above code to use PIL instead of cv2
     ## add code here to resize and update bboxes
     ...
 
