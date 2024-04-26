@@ -267,13 +267,13 @@ def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     # Randomly apply skew factors to each corner
     dst_points = np.float32([
         [np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
-         np.random.uniform(-max_skew_factor, max_skew_factor) * height],
+         np.random.uniform(-max_warp_factor, max_warp_factor) * height],
         [width + np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
-         np.random.uniform(-max_skew_factor, max_skew_factor) * height],
+         np.random.uniform(-max_warp_factor, max_warp_factor) * height],
         [np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
-         height + np.random.uniform(-max_skew_factor, max_skew_factor) * height],
+         height + np.random.uniform(-max_warp_factor, max_warp_factor) * height],
         [width + np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
-         height + np.random.uniform(-max_skew_factor, max_skew_factor) * height]
+         height + np.random.uniform(-max_warp_factor, max_warp_factor) * height]
     ])
 
     # Compute the perspective transform matrix

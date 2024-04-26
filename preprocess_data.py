@@ -38,7 +38,9 @@ def extract_info(comment):
     return [int(duration.group(1)) if duration else None, 
             int(rel_position.group(1)) if rel_position else None]
 ##
-## add code here to impute tjhe relative positions
+## Eric- add code here to impute the relative positions
+## see where this is implemented below to get an 
+## idea of the inputs and output - should be a df vectorize function
 ##
 """end of helper functions for relative positions and durations"""
 
@@ -130,6 +132,8 @@ def convert_str_to_list(coord_str):
 
 #
 # more code here to compute full barlines/measures
+# input - df from below
+# output - df to be concatenated below
 #
 """end barline processing helpers"""
 
@@ -183,17 +187,14 @@ def preprocess_data(json_directory, labels_path):
     # create a mask for the rel_position to mark where the rel_position is relevent
     train_obboxs['rel_position_mask'] = train_obboxs['rel_position'].notna().astype(int)
     test_obboxs['rel_position_mask'] = test_obboxs['rel_position'].notna().astype(int)
+    ##
+    ## Eric- the two lines of code can be adjusted to use your vectorize function
     # set items with no rel_position to 50 (nothing has a position this high)
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
     test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
     print("Imputed durations and positions.")
 
-    # add 2px padding to any bounding box with a dimension < 2px
-    train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
-    test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
-    train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
-    test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
-    print("Added padding where needed.")
+    # padding used to be here
 
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
@@ -226,34 +227,22 @@ def preprocess_data(json_directory, labels_path):
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
 
     #
-    # add code here to process the barlines into full measure lines or bboxes
+    ## add code here to process the barlines into full measure lines or bboxes
+    ## train_barlines = process_barlines(train_barlines)
     #
     
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
     test_data = pd.concat([test_data, test_barlines], ignore_index=True)
     print("Processed barlines into main df.")
 
-    # # add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
-    # tqdm.pandas() 
-    # train_data['yolo_bbox'] = train_data.progress_apply(apply_corners_to_yolo, axis=1)
-    # test_data['yolo_bbox'] = test_data.progress_apply(apply_corners_to_yolo, axis=1)
-    # add area columns 
-    train_data['a_area'] = train_data['a_bbox'].apply(calculate_bbox_area)
-    test_data['a_area'] = test_data['a_bbox'].apply(calculate_bbox_area)
-    train_data['o_area'] = train_data['o_bbox'].apply(calculate_bbox_area)
-    test_data['o_area'] = test_data['o_bbox'].apply(calculate_bbox_area)
-    print("Computed (yolo and) areas.")
+    # areas/yolo used to be here
 
     # AGGREGATE everything so that each row contains all the data for a single image
     train_data_agg = train_data.groupby('filename').agg({
         'ann_id': lambda x: list(x),
         'a_bbox': lambda x: list(x),
         'o_bbox': lambda x: list(x),
-        'padded_a_bbox': lambda x: list(x),
-        'padded_o_bbox': lambda x: list(x),
         'area': lambda x: list(x),
-        'a_area': lambda x: list(x),
-        'o_area': lambda x: list(x),
         'duration': lambda x: list(x),
         'duration_mask': lambda x: list(x),
         'rel_position': lambda x: list(x), 
@@ -267,11 +256,7 @@ def preprocess_data(json_directory, labels_path):
         'ann_id': lambda x: list(x),
         'a_bbox': lambda x: list(x),
         'o_bbox': lambda x: list(x),
-        'padded_a_bbox': lambda x: list(x),
-        'padded_o_bbox': lambda x: list(x),
         'area': lambda x: list(x),
-        'a_area': lambda x: list(x),
-        'o_area': lambda x: list(x),
         'duration': lambda x: list(x),
         'duration_mask': lambda x: list(x),
         'rel_position': lambda x: list(x), 
@@ -290,12 +275,44 @@ def preprocess_data(json_directory, labels_path):
     width = train_data_agg['width'].median()
     height = train_data_agg['height'].median() 
 
-    #
+    # Eren
     ## resize images that are too big or small and update bounding boxes and image data
     ## add distortion to all images
     #
+    # make a new folder to hold the processed images
+    # for every row in the df:
+    #   if the image is the correct size:
+    #        img, abb, obb = apply_random_distortion(image, a_bboxes, o_bboxes)
+    #        update df with new bboxes and new image filename/path
+    #   else:
+    #       resized_img = resize_image()
+    #       img, abb, obb = apply_random_distortion(resized_image, a_bboxes, o_bboxes)
+    #       update df with new bboxes, new image filename/path, new image width/height,
+    #          set resized=1
+    # for every row with resized==1, 
+    print("Image resizing and distortion complete.")
 
-    # save processed data
+    # compute the features that depend on the final bounding boxes here
+    # compute the padding here
+    # compute the areas here
+    #     # add 2px padding to any bounding box with a dimension < 2px
+    # train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
+    # test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
+    # train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
+    # test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
+    print("Added padding where needed.")
+    #     # # add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
+    # # tqdm.pandas() 
+    # # train_data['yolo_bbox'] = train_data.progress_apply(apply_corners_to_yolo, axis=1)
+    # # test_data['yolo_bbox'] = test_data.progress_apply(apply_corners_to_yolo, axis=1)
+    # # add area columns 
+    # train_data['a_area'] = train_data['a_bbox'].apply(calculate_bbox_area)
+    # test_data['a_area'] = test_data['a_bbox'].apply(calculate_bbox_area)
+    # train_data['o_area'] = train_data['o_bbox'].apply(calculate_bbox_area)
+    # test_data['o_area'] = test_data['o_bbox'].apply(calculate_bbox_area)
+    print("Computed (yolo and) areas.")
+
+    #  save processed data
     train_data_agg.to_csv(json_directory+'train_df_for_model.csv')
     test_data_agg.to_csv(json_directory+'test_df_for_model.csv')
     print("Processing complete, saved csv files.")
