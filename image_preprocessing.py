@@ -50,7 +50,7 @@ def get_image_with_bboxes(image_path_or_bin, bounding_boxes, show=False):
     if show: image.show()
     return image
 
-def apply_blur(image_path_or_bin, blur_radius=None):
+def apply_blur(image_path_or_bin, max_blur_radius=3):
     
     # Load the image
     if type(image_path_or_bin) is str:
@@ -59,8 +59,7 @@ def apply_blur(image_path_or_bin, blur_radius=None):
         image = image_path_or_bin
     
     # set the intensity of the blur
-    if blur_radius is None:
-        blur_radius = random.randint(1, 3)
+    blur_radius = random.randint(1, max_blur_radius)
         
     # Define the area to blur (x1, y1, x2, y2)
     x1 = random.randint(0, image.width*0.5)
@@ -76,14 +75,16 @@ def apply_blur(image_path_or_bin, blur_radius=None):
     return image
 
 def apply_zoom(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
-               min_zoom=0.8, max_zoom=1.2):
+               max_zoom_proportion=1.2):
     
     # Load the image
     if type(image_path_or_bin) is str:
         image = Image.open(image_path_or_bin)
     else:
         image = image_path_or_bin
-        
+
+    max_zoom = max_zoom_proportion
+    min_zoom = 2 - max_zoom_proportion
     original_width, original_height = image.size
     scale_factor = np.random.uniform(min_zoom, max_zoom)
 
@@ -185,7 +186,7 @@ def apply_rotation(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     return rotated_image, new_orthogonal_bboxes, new_oriented_bboxes
 
 def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
-               horizontal_warp_range=0.05, vertical_warp_range=0.05):
+               horizontal_skew_range=0.05, vertical_skew_range=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
         image = cv2.imread(image_path_or_bin)
@@ -196,8 +197,8 @@ def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     height, width = image.shape[:2]
 
     # Randomly select warp ratios within the specified ranges
-    horizontal_warp = np.random.uniform(-horizontal_warp_range, horizontal_warp_range)
-    vertical_warp = np.random.uniform(-vertical_warp_range, vertical_warp_range)
+    horizontal_warp = np.random.uniform(-horizontal_skew_range, horizontal_skew_range)
+    vertical_warp = np.random.uniform(-vertical_skew_range, vertical_skew_range)
 
     # Define source points (original corners of the image)
     src_points = np.float32([[0, 0], [width, 0], [0, height], [width, height]])
@@ -250,7 +251,7 @@ def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     return skewed_image, new_orthogonal_bboxes, new_oriented_bboxes
 
 def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes, 
-               max_skew_factor=0.05):
+               max_warp_factor=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
         image = cv2.imread(image_path_or_bin)
@@ -265,13 +266,13 @@ def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
     # Randomly apply skew factors to each corner
     dst_points = np.float32([
-        [np.random.uniform(-max_skew_factor, max_skew_factor) * width, 
+        [np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
          np.random.uniform(-max_skew_factor, max_skew_factor) * height],
-        [width + np.random.uniform(-max_skew_factor, max_skew_factor) * width, 
+        [width + np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
          np.random.uniform(-max_skew_factor, max_skew_factor) * height],
-        [np.random.uniform(-max_skew_factor, max_skew_factor) * width, 
+        [np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
          height + np.random.uniform(-max_skew_factor, max_skew_factor) * height],
-        [width + np.random.uniform(-max_skew_factor, max_skew_factor) * width, 
+        [width + np.random.uniform(-max_warp_factor, max_warp_factor) * width, 
          height + np.random.uniform(-max_skew_factor, max_skew_factor) * height]
     ])
 
@@ -336,6 +337,20 @@ def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
     return resized_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
 
-def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes):
+def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
+                            max_blur_radius=3, max_rotation_deg=4, max_zoom=1.2,
+                            max_warp_factor = 0.04):
     # write a function to either blur+warp or blur+rotate+zoom
+    if random.randint(0,1): # equal choice of either warping or zoom/rotation
+        img, abb, obb = apply_rotation(image_path_or_bin, orthogonal_bboxes, 
+                                       oriented_bboxes, max_rotation_deg)
+        img, abb, obb = apply_zoom(img, abb, obb, max_zoom)
+        image_pil = apply_blur(img, max_blur_radius)
+    else:
+        img, abb, obb = apply_warp(image_path_or_bin, orthogonal_bboxes, 
+                                   oriented_bboxes, max_warp_factor)  
+        image_pil = apply_blur(img, max_blur_radius)
+
+    new_orthogonal_bboxes = abb
+    new_oriented_bboxes = obb
     return image_pil, new_orthogonal_bboxes, new_oriented_bboxes 
