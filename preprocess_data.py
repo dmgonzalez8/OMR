@@ -14,6 +14,7 @@ import matplotlib.patches as patches
 from shapely.geometry import Polygon, LineString, Point
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import cv2
+from image_distortion import *
 
 """start of helper functions for remapping old cat_id to new label"""
 def map_cat_ids_to_classes(class_mapping, cat_ids):
