@@ -37,7 +37,7 @@ def extract_info(comment):
     return [int(duration.group(1)) if duration else None, 
             int(rel_position.group(1)) if rel_position else None]
 ##
-## more code here
+## add code here to impute tjhe relative positions
 ##
 """end of helper functions for relative positions and durations"""
 
@@ -128,7 +128,7 @@ def convert_str_to_list(coord_str):
     return ast.literal_eval(coord_str)
 
 #
-# more code here
+# more code here to compute full barlines/measures
 #
 """end barline processing helpers"""
 
@@ -143,11 +143,13 @@ def preprocess_data(json_directory, labels_path):
         test_json = json.load(file)
     raw_labels = pd.read_csv(labels_path)
     raw_labels.head()
+    print("Read JSON complete.")
 
     # make the final list of labels for Torch
     unique_labels = raw_labels[['label', 'name']]
     unique_labels = unique_labels.drop_duplicates(subset=['label'])
     unique_labels = unique_labels.sort_values(by=['label']).reset_index(drop=True)
+    print("Make unique label list complete.")
 
     # extract the images and annotations (obboxs) tables
     train_images = pd.DataFrame(train_json['images'])
@@ -156,6 +158,7 @@ def preprocess_data(json_directory, labels_path):
     test_obboxs = pd.DataFrame(test_json['annotations']).T
     train_images.rename(columns={'id': 'img_id'}, inplace=True)
     test_images.rename(columns={'id': 'img_id'}, inplace=True)
+    print("Extracted tables from JSON.")
 
     # update the annotation/obboxs table with the new labels (existing labels have issues)
     class_mapping = dict(zip(raw_labels['old_id'].astype(str), raw_labels['label']))
@@ -165,6 +168,7 @@ def preprocess_data(json_directory, labels_path):
     test_obboxs['label'] = test_obboxs['label'].apply(clean_labels)
     train_obboxs['label'] = train_obboxs['label'].apply(select_highest_precedence)
     test_obboxs['label'] = test_obboxs['label'].apply(select_highest_precedence)
+    print("Updated labels to new mapping.")
 
     # update the annotations/obboxs table with the rel_position and duration extracted from comments
     train_obboxs[['duration', 'rel_position']] = train_obboxs['comments'].apply(extract_info).tolist()
@@ -181,12 +185,14 @@ def preprocess_data(json_directory, labels_path):
     # set items with no rel_position to 50 (nothing has a position this high)
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
     test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
+    print("Imputed durations and positions.")
 
     # add 2px padding to any bounding box with a dimension < 2px
     train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
     test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
     train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
     test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
+    print("Added padding where needed.")
 
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
@@ -201,40 +207,50 @@ def preprocess_data(json_directory, labels_path):
     test_obboxs['area'] = test_obboxs['area'].astype(int)
     train_obboxs['img_id'] = train_obboxs['img_id'].astype(int)
     test_obboxs['img_id'] = test_obboxs['img_id'].astype(int)
+    print("Cleaned up tables.")
 
     # join the bounding box annotations and image information
     train_data = pd.merge(train_obboxs, train_images, on='img_id', how='inner')
     test_data = pd.merge(test_obboxs, test_images, on='img_id', how='inner')
     train_data.drop('ann_ids', axis=1, inplace=True)
     test_data.drop('ann_ids', axis=1, inplace=True)
+    print("Merged bboxs and images together.")
 
     # concat the barlines annotations
     train_barlines = pd.read_csv(json_directory+'deepscores_train_barlines.csv')
     test_barlines = pd.read_csv(json_directory+'deepscores_test_barlines.csv')
     train_barlines['a_bbox'] = train_barlines['a_bbox'].apply(convert_str_to_list)
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
-    train_barlines['padded_bbox'] = train_barlines['padded_bbox'].apply(convert_str_to_list)
     test_barlines['a_bbox'] = test_barlines['a_bbox'].apply(convert_str_to_list)
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
-    test_barlines['padded_bbox'] = test_barlines['padded_bbox'].apply(convert_str_to_list)
-    """ add code here to process the barlines into measure lines or bboxes """
+    
+    """ add code here to process the barlines into full measure lines or bboxes """
+    
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
     test_data = pd.concat([test_data, test_barlines], ignore_index=True)
+    print("Processed barlines into main df.")
 
-    # add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
-    train_data['yolo_bbox'] = train_data.apply(apply_corners_to_yolo, axis=1)
-    test_data['yolo_bbox'] = test_data.apply(apply_corners_to_yolo, axis=1)
+    # # add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
+    # tqdm.pandas() 
+    # train_data['yolo_bbox'] = train_data.progress_apply(apply_corners_to_yolo, axis=1)
+    # test_data['yolo_bbox'] = test_data.progress_apply(apply_corners_to_yolo, axis=1)
     # add area columns 
     train_data['a_area'] = train_data['a_bbox'].apply(calculate_bbox_area)
+    test_data['a_area'] = test_data['a_bbox'].apply(calculate_bbox_area)
     train_data['o_area'] = train_data['o_bbox'].apply(calculate_bbox_area)
+    test_data['o_area'] = test_data['o_bbox'].apply(calculate_bbox_area)
+    print("Computed (yolo and) areas.")
 
     # AGGREGATE everything so that each row contains all the data for a single image
     train_data_agg = train_data.groupby('filename').agg({
         'ann_id': lambda x: list(x),
         'a_bbox': lambda x: list(x),
         'o_bbox': lambda x: list(x),
-        'padded_bbox': lambda x: list(x),
+        'padded_a_bbox': lambda x: list(x),
+        'padded_o_bbox': lambda x: list(x),
         'area': lambda x: list(x),
+        'a_area': lambda x: list(x),
+        'o_area': lambda x: list(x),
         'duration': lambda x: list(x),
         'duration_mask': lambda x: list(x),
         'rel_position': lambda x: list(x), 
@@ -248,8 +264,11 @@ def preprocess_data(json_directory, labels_path):
         'ann_id': lambda x: list(x),
         'a_bbox': lambda x: list(x),
         'o_bbox': lambda x: list(x),
-        'padded_bbox': lambda x: list(x),
+        'padded_a_bbox': lambda x: list(x),
+        'padded_o_bbox': lambda x: list(x),
         'area': lambda x: list(x),
+        'a_area': lambda x: list(x),
+        'o_area': lambda x: list(x),
         'duration': lambda x: list(x),
         'duration_mask': lambda x: list(x),
         'rel_position': lambda x: list(x), 
@@ -259,9 +278,20 @@ def preprocess_data(json_directory, labels_path):
         'width': 'first',   # assuming all entries per image have the same width
         'height': 'first'  # assuming all entries per image have the same height
     }).reset_index()
+    print("Aggregated dfs down to single row per image.")
 
     # add a flag for resizing (will be set by future functions)
     train_data_agg['resized'] = 0
     test_data_agg['resized'] = 0
+    # get the width and height for the model- all bigger/smaller images will be resized to this 
+    width = train_data_agg['width'].median()
+    height = train_data_agg['height'].median() 
+    
+    ## resize images that are too big or small and update bounding boxes and image data
+
+    # save processed data
+    train_data_agg.to_csv(json_directory+'train_df_for_model.csv')
+    test_data_agg.to_csv(json_directory+'test_df_for_model.csv')
+    print("Processing complete, saved csv files.")
 
     return train_data_agg, test_data_agg

@@ -41,6 +41,8 @@ def analyze_image_for_barlines(image_path):
             'filename': image_path.split('/')[-1].replace('_seg',''),
             'a_bbox': orthogonal_bbox,
             'o_bbox': [float(coord) for xs in box.tolist() for coord in xs],
+            'padded_a_bbox': orthogonal_bbox,
+            'padded_o_bbox': [float(coord) for xs in box.tolist() for coord in xs],
             'area': w*h,
             'width': width,
             'height': height
@@ -60,15 +62,15 @@ def process_dataset(json_directory, segmentation_directory):
             images_df = pd.DataFrame(data['images'])
             filenames = images_df['filename'].tolist()
 
-        output_csv = json_file.replace('.json', '.csv')
+        output_csv = json_file.replace('.json', '_barlines.csv')
         output_path = os.path.join(output_directory, output_csv)
 
         # Prepare an empty DataFrame to collect all barline data
-        barlines_data = pd.DataFrame(columns=['filename', 'a_bbox', 'o_bbox', 'area',
-                                              'width', 'height', 'ann_id',
-                                              'label', 'padded_bbox', 'duration', 
-                                              'rel_position', 'duration_mask', 
-                                              'rel_position_mask'])
+        barlines_data = pd.DataFrame(columns=['filename', 'a_bbox', 'o_bbox', 
+                                              'padded_a_bbox', 'padded_o_bbox', 
+                                              'area', 'width', 'height', 'ann_id',
+                                              'label', 'duration', 'rel_position', 
+                                              'duration_mask', 'rel_position_mask'])
         barlines_data.to_csv(output_path)
         
         ann_id = -1
@@ -81,7 +83,6 @@ def process_dataset(json_directory, segmentation_directory):
                 annotations['ann_id'] = [ann_id - i for i in range(len(annotations))]
                 ann_id -= len(annotations)  # Decrement ann_id for next file
                 annotations['label'] = 156
-                annotations['padded_bbox'] = annotations['a_bbox']
                 annotations['duration'] = -1
                 annotations['rel_position'] = 0
                 annotations['duration_mask'] = 0
