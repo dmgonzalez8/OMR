@@ -223,8 +223,10 @@ def preprocess_data(json_directory, labels_path):
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
     test_barlines['a_bbox'] = test_barlines['a_bbox'].apply(convert_str_to_list)
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
-    
-    """ add code here to process the barlines into full measure lines or bboxes """
+
+    #
+    # add code here to process the barlines into full measure lines or bboxes
+    #
     
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
     test_data = pd.concat([test_data, test_barlines], ignore_index=True)
@@ -286,8 +288,11 @@ def preprocess_data(json_directory, labels_path):
     # get the width and height for the model- all bigger/smaller images will be resized to this 
     width = train_data_agg['width'].median()
     height = train_data_agg['height'].median() 
-    
+
+    #
     ## resize images that are too big or small and update bounding boxes and image data
+    ## add distortion to all images
+    #
 
     # save processed data
     train_data_agg.to_csv(json_directory+'train_df_for_model.csv')
