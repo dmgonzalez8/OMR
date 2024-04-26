@@ -75,7 +75,8 @@ def apply_blur(image_path_or_bin, blur_radius=None):
 
     return image
 
-def apply_zoom(image_path_or_bin, bounding_boxes, min_zoom=0.8, max_zoom=1.2):
+def apply_zoom(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
+               min_zoom=0.8, max_zoom=1.2):
     
     # Load the image
     if type(image_path_or_bin) is str:
@@ -101,26 +102,26 @@ def apply_zoom(image_path_or_bin, bounding_boxes, min_zoom=0.8, max_zoom=1.2):
     result_image.paste(resized_image, (pad_width, pad_height))
 
     # Adjust bounding boxes
-    adjusted_bboxes = []
-    if len(bounding_boxes[0])==8:
-        for coords in bounding_boxes:
-            adjusted_coords = []
-            for i in range(0, len(coords), 2):
-                new_x = coords[i] * scale_factor + pad_width
-                new_y = coords[i+1] * scale_factor + pad_height
-                adjusted_coords.extend([new_x, new_y])
-            adjusted_bboxes.append(tuple(adjusted_coords))
-    else:
-        for x1, y1, x2, y2 in bounding_boxes:
-            new_x1 = x1 * scale_factor + pad_width
-            new_y1 = y1 * scale_factor + pad_height
-            new_x2 = x2 * scale_factor + pad_width
-            new_y2 = y2 * scale_factor + pad_height
-            adjusted_bboxes.append((new_x1, new_y1, new_x2, new_y2))
+    new_oriented_bboxes = []
+    for coords in oriented_bboxes:
+        adjusted_coords = []
+        for i in range(0, len(coords), 2):
+            new_x = coords[i] * scale_factor + pad_width
+            new_y = coords[i+1] * scale_factor + pad_height
+            adjusted_coords.extend([new_x, new_y])
+        new_oriented_bboxes.append(tuple(adjusted_coords))
+    new_orthogonal_bboxes = []
+    for x1, y1, x2, y2 in orthogonal_bboxes:
+        new_x1 = x1 * scale_factor + pad_width
+        new_y1 = y1 * scale_factor + pad_height
+        new_x2 = x2 * scale_factor + pad_width
+        new_y2 = y2 * scale_factor + pad_height
+        new_orthogonal_bboxes.append((new_x1, new_y1, new_x2, new_y2))
 
-    return result_image, adjusted_bboxes
+    return result_image, new_orthogonal_bboxes, new_oriented_bboxes
 
-def apply_rotation(image_path_or_bin, bounding_boxes, max_rotation_deg=5):
+def apply_rotation(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
+                   max_rotation_deg=5):
     # Load the image
     if type(image_path_or_bin) is str:
         image = Image.open(image_path_or_bin)
@@ -129,7 +130,7 @@ def apply_rotation(image_path_or_bin, bounding_boxes, max_rotation_deg=5):
     
     width, height = image.size
 
-    # Random rotation angle between -5 and 5 degrees
+    # Random rotation angle between -max_rotation_deg and max_rotation_deg degrees
     angle = np.random.uniform(-max_rotation_deg, max_rotation_deg)
 
     # Rotate image with a white background
@@ -144,15 +145,14 @@ def apply_rotation(image_path_or_bin, bounding_boxes, max_rotation_deg=5):
     rotated_image = rotated_image.crop((left, top, right, bottom))
 
     # Calculate new bounding boxes
-    new_bounding_boxes = []
+    new_orthogonal_bboxes = []
+    new_oriented_bboxes = []
     rad_angle = math.radians(-angle)  # Negative to rotate the points back
-    for box in bounding_boxes:
-        new_box = []
-        if len(bounding_boxes[0])==8:
-            points = [(box[i], box[i + 1]) for i in range(0, len(box), 2)]
-        else:
-            points = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
 
+    # Process orthogonal bounding boxes
+    for box in orthogonal_bboxes:
+        points = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
+        new_box = []
         for x, y in points:
             # Translate point to origin
             tx = x - width / 2
@@ -162,17 +162,29 @@ def apply_rotation(image_path_or_bin, bounding_boxes, max_rotation_deg=5):
             new_y = (math.sin(rad_angle) * tx + math.cos(rad_angle) * ty) + height / 2
             new_box.extend([new_x, new_y])
 
-        if len(bounding_boxes[0])==8:
-            new_bounding_boxes.append(new_box)  # Store the four corner points for OBBs
-        else:
-            # Convert back to bounding box format
-            min_x, min_y = min(new_box[::2]), min(new_box[1::2])
-            max_x, max_y = max(new_box[::2]), max(new_box[1::2])
-            new_bounding_boxes.append((min_x, min_y, max_x, max_y))
+        # Convert back to bounding box format
+        min_x, min_y = min(new_box[::2]), min(new_box[1::2])
+        max_x, max_y = max(new_box[::2]), max(new_box[1::2])
+        new_orthogonal_bboxes.append((min_x, min_y, max_x, max_y))
 
-    return rotated_image, new_bounding_boxes
+    # Process oriented bounding boxes
+    for box in oriented_bboxes:
+        points = [(box[i], box[i + 1]) for i in range(0, len(box), 2)]
+        new_box = []
+        for x, y in points:
+            # Translate point to origin
+            tx = x - width / 2
+            ty = y - height / 2
+            # Rotate point
+            new_x = (math.cos(rad_angle) * tx - math.sin(rad_angle) * ty) + width / 2
+            new_y = (math.sin(rad_angle) * tx + math.cos(rad_angle) * ty) + height / 2
+            new_box.extend([new_x, new_y])
 
-def apply_skew(image_path_or_bin, bounding_boxes, 
+        new_oriented_bboxes.append(new_box)  # Store the four corner points for OBBs
+
+    return rotated_image, new_orthogonal_bboxes, new_oriented_bboxes
+
+def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
                horizontal_warp_range=0.05, vertical_warp_range=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
@@ -202,29 +214,43 @@ def apply_skew(image_path_or_bin, bounding_boxes,
     matrix = cv2.getPerspectiveTransform(src_points, dst_points)
 
     # Warp the image using the transformation matrix
-    warped_image = cv2.warpPerspective(image, matrix, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
-    warped_image = Image.fromarray(warped_image).convert('L')
+    skewed_image = cv2.warpPerspective(image, matrix, (width, height), 
+                                       borderMode=cv2.BORDER_CONSTANT, 
+                                       borderValue=(255, 255, 255))
+    skewed_image = Image.fromarray(skewed_image).convert('L')
     
     # Adjust bounding boxes
-    new_bounding_boxes = []
-    for box in bounding_boxes:
+    new_orthogonal_bboxes = []
+    new_oriented_bboxes = []
+    for box in orthogonal_bboxes:
         new_box = []
-        # Transform each corner of the bounding box
-        for i in range(0, len(box), 2):
-            point = np.array([[[box[i], box[i+1]]]], dtype='float32')
+        # Transform each corner of the orthogonal bounding box
+        points = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
+        for x, y in points:
+            point = np.array([[[x, y]]], dtype='float32')
             # Apply the transformation matrix
             transformed_point = cv2.perspectiveTransform(point, matrix)
             new_box.extend(transformed_point[0][0])
-        if not len(bounding_boxes[0])==8:
-            # For non-oriented boxes, recalculate to orthogonal bounds
-            min_x, min_y = min(new_box[::2]), min(new_box[1::2])
-            max_x, max_y = max(new_box[::2]), max(new_box[1::2])
-            new_box = [min_x, min_y, max_x, max_y]
-        new_bounding_boxes.append(new_box)
+        # Recalculate to orthogonal bounds
+        min_x, min_y = min(new_box[::2]), min(new_box[1::2])
+        max_x, max_y = max(new_box[::2]), max(new_box[1::2])
+        new_orthogonal_bboxes.append([min_x, min_y, max_x, max_y])
 
-    return warped_image, new_bounding_boxes # this is a PIL image
+    for box in oriented_bboxes:
+        new_box = []
+        # Transform each corner of the oriented bounding box
+        points = [(box[i], box[i + 1]) for i in range(0, len(box), 2)]
+        for x, y in points:
+            point = np.array([[[x, y]]], dtype='float32')
+            # Apply the transformation matrix
+            transformed_point = cv2.perspectiveTransform(point, matrix)
+            new_box.extend(transformed_point[0][0])
+        new_oriented_bboxes.append(new_box)  # Store the four corner points for OBBs
 
-def apply_warp(image_path_or_bin, bounding_boxes, max_skew_factor=0.05):
+    return skewed_image, new_orthogonal_bboxes, new_oriented_bboxes
+
+def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes, 
+               max_skew_factor=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
         image = cv2.imread(image_path_or_bin)
@@ -260,23 +286,39 @@ def apply_warp(image_path_or_bin, bounding_boxes, max_skew_factor=0.05):
     # Convert warped image back to PIL format and convert to grayscale
     warped_image_pil = Image.fromarray(warped_image[:, :, ::-1]).convert('L')
 
-    # Adjust bounding boxes
-    new_bounding_boxes = []
-    for box in bounding_boxes:
+    # Adjust orthogonal and oriented bounding boxes
+    new_orthogonal_bboxes = []
+    new_oriented_bboxes = []
+
+    # Adjust orthogonal bounding boxes
+    for box in orthogonal_bboxes:
         transformed_points = []
-        # Transform each corner of the bounding box
+        # Convert orthogonal box corners for transformation
+        points = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
+        for x, y in points:
+            point = np.array([[[x, y]]], dtype='float32')
+            transformed_point = cv2.perspectiveTransform(point, matrix)
+            transformed_points.extend(transformed_point[0][0])
+
+        # Recalculate the orthogonal bounding box to contain all transformed points
+        xs = transformed_points[0::2]
+        ys = transformed_points[1::2]
+        new_box = [min(xs), min(ys), max(xs), max(ys)]
+        new_orthogonal_bboxes.append(new_box)
+
+    # Adjust oriented bounding boxes
+    for box in oriented_bboxes:
+        transformed_points = []
+        # Transform each corner of the oriented bounding box
         for i in range(0, len(box), 2):
             point = np.array([[[box[i], box[i + 1]]]], dtype='float32')
             transformed_point = cv2.perspectiveTransform(point, matrix)
             transformed_points.extend(transformed_point[0][0])
 
-        # Recalculate the bounding box to contain all points
-        xs = transformed_points[0::2]
-        ys = transformed_points[1::2]
-        new_box = [min(xs), min(ys), max(xs), max(ys)]
-        new_bounding_boxes.append(new_box)
+        # Store the transformed points as the new oriented bounding box
+        new_oriented_bboxes.append(transformed_points)
 
-    return warped_image_pil, new_bounding_boxes
+    return warped_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
 
 def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes, 
                  target_width, target_height):
@@ -288,10 +330,12 @@ def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
     ## you might need to update the above code if you are not using PIL
     ## add code here to resize and update bboxes
-    ## needs to process both 
     ## return image binary PIL
-    ## return bounding boxed as a list
+    ## return bounding boxes as a list (see above functions)
+    ## test it out- use the get_image_with_bboxes function above to draw the results
 
     return resized_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
 
-"""add a main function which applies random distortion to images"""
+def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes):
+    # write a function to either blur+warp or blur+rotate+zoom
+    return image_pil, new_orthogonal_bboxes, new_oriented_bboxes 
