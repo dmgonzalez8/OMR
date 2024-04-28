@@ -189,13 +189,13 @@ def preprocess_data(json_directory, labels_path):
     test_obboxs['rel_position_mask'] = test_obboxs['rel_position'].notna().astype(int)
     ##
     ## Eric- the two lines of code can be adjusted to use your vectorize function
-    # set items with no rel_position to 50 (nothing has a position this high)
+    ## set items with no rel_position to 50 (nothing has a position this high)
+    ##
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
     test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
     print("Imputed durations and positions.")
 
     # padding used to be here
-
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
     test_obboxs.reset_index(inplace=True)
@@ -227,7 +227,7 @@ def preprocess_data(json_directory, labels_path):
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
 
     #
-    ## add code here to process the barlines  into full measure lines or bboxes
+    ## add code here to process the barlines into full measure lines or bboxes
     ## train_barlines = process_barlines(train_barlines)
     #
     

@@ -41,8 +41,8 @@ def merge_close_boxes(data, merge_radius=20):
             'padded_a_bbox': [x_min, y_min, x_max, y_max],
             'padded_o_bbox': [x_min, y_min, x_max, y_min, x_min, y_max, x_max, y_max],
             'area': (x_max - x_min) * (y_max - y_min),
-            'width': x_max - x_min,
-            'height': y_max - y_min
+            'width': -1, # this is updated later
+            'height': -1 # this is updated later
         })
 
     # Create a new DataFrame with the merged data
