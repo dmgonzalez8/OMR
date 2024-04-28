@@ -293,8 +293,6 @@ def preprocess_data(json_directory, labels_path):
     print("Image resizing and distortion complete.")
 
     # compute the features that depend on the final bounding boxes here
-    # compute the padding here
-    # compute the areas here
     #     # add 2px padding to any bounding box with a dimension < 2px
     # train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
     # test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
