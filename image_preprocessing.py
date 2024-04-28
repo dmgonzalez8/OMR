@@ -321,21 +321,59 @@ def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
     return warped_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
 
+"""help function for resize_image"""
+def adjust_bbox(o_bbox_lists, scaling_factor_x, scaling_factor_y, pad_x, pad_y):
+    # Convert list of lists to a NumPy array for vectorized operations
+    bboxes = np.array(o_bbox_lists)
+    
+    # Calculate new coordinates based on the scaling factors and padding
+    adjusted_bboxes = np.empty_like(bboxes)
+    adjusted_bboxes[:, 0::2] = (bboxes[:, 0::2] * scaling_factor_x) + pad_x
+    adjusted_bboxes[:, 1::2] = (bboxes[:, 1::2] * scaling_factor_y) + pad_y
+    
+    # Convert adjusted numpy array back to a list of lists if necessary
+    return adjusted_bboxes.tolist()
+"""end helper function for resize_image"""
+
 def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes, 
-                 target_width, target_height):
+                 target_width, target_height):   
     # Load the image (PIL)
     if type(image_path_or_bin) is str:
-        image = Image.open(image_path_or_bin)
+        img = Image.open(image_path_or_bin)
     else:
-        image = image_path_or_bin
+        img = image_path_or_bin 
+    # Calculating scaling factor, padding x, padding y
+    scaling_factor = min(target_width / img.width, target_height / img.height)
+    padding_delta_x = (target_width - (img.width * scaling_factor)) / 2
+    padding_delta_y = (target_height - (img.height * scaling_factor)) / 2        
+    
+    new_size = (int(img.width * scaling_factor), int(img.height * scaling_factor))
+    resized_img = img.resize(new_size, Image.LANCZOS)        
+    
+    # Save the padded resized image
+    padded_img = Image.new("RGB", (target_width, target_height), "white")
+    padded_img.paste(resized_img, (int(padding_delta_x), int(padding_delta_y)))        
+    
+    # Find the real scaling factor and padding delta x, y to calculate the new coordinates
+    real_scaling_factor_x = new_size[0] / img.width
+    real_scaling_factor_y = new_size[1] / img.height        
+    
+    real_padding_delta_x = int(padding_delta_x)
+    real_padding_delta_y = int(padding_delta_y)        
 
-    ## you might need to update the above code if you are not using PIL
-    ## add code here to resize and update bboxes
-    ## return image binary PIL
-    ## return bounding boxes as a list (see above functions)
-    ## test it out- use the get_image_with_bboxes function above to draw the results
+    new_oriented_bboxes = adjust_bbox(o_bbox_lists=oriented_bboxes, 
+                                      scaling_factor_x=real_scaling_factor_x, 
+                                      scaling_factor_y=real_scaling_factor_y, 
+                                      pad_x=real_padding_delta_x, 
+                                      pad_y=real_padding_delta_y)
+    new_orthogonal_bboxes = adjust_bbox(o_bbox_lists=orthogonal_bboxes, 
+                                        scaling_factor_x=real_scaling_factor_x, 
+                                        scaling_factor_y=real_scaling_factor_y, 
+                                        pad_x=real_padding_delta_x, 
+                                        pad_y=real_padding_delta_y)   
+         
+    return padded_img, new_oriented_bboxes, new_orthogonal_bboxes
 
-    return resized_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
 
 def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
                             max_blur_radius=3, max_rotation_deg=4, max_zoom=1.2,

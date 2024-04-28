@@ -227,7 +227,7 @@ def preprocess_data(json_directory, labels_path):
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
 
     #
-    ## add code here to process the barlines into full measure lines or bboxes
+    ## add code here to process the barlines  into full measure lines or bboxes
     ## train_barlines = process_barlines(train_barlines)
     #
     
