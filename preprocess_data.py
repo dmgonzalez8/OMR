@@ -39,8 +39,20 @@ def extract_info(comment):
             int(rel_position.group(1)) if rel_position else None]
 ##
 ## Eric- add code here to impute the relative positions
-## see where this is implemented below to get an 
-## idea of the inputs and output - should be a df vectorize function
+# Function to estimate missing 'rel_position' based on known positions
+def estimate_missing_positions(series):
+    # Use some method to estimate missing values
+    return series.interpolate(method='linear', limit_direction='both')
+
+
+def process_dataframe(df):
+    # First, extract info from comments
+    df[['duration', 'rel_position']] = df['comments'].apply(extract_info).tolist()
+
+    # Apply the imputation function to the 'rel_position' column grouped by 'image_id'
+    df['rel_position'] = df.groupby('img_id')['rel_position'].transform(estimate_missing_positions)
+
+    return df
 ##
 """end of helper functions for relative positions and durations"""
 
@@ -189,13 +201,13 @@ def preprocess_data(json_directory, labels_path):
     test_obboxs['rel_position_mask'] = test_obboxs['rel_position'].notna().astype(int)
     ##
     ## Eric- the two lines of code can be adjusted to use your vectorize function
-    ## set items with no rel_position to 50 (nothing has a position this high)
-    ##
+    # set items with no rel_position to 50 (nothing has a position this high)
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
     test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
     print("Imputed durations and positions.")
 
     # padding used to be here
+
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
     test_obboxs.reset_index(inplace=True)
@@ -357,6 +369,14 @@ def preprocess_data(json_directory, labels_path):
     train_data_agg['padded_o_bbox'] = train_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     test_data_agg['padded_a_bbox'] = test_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     test_data_agg['padded_o_bbox'] = test_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
+    # compute the features that depend on the final bounding boxes here
+    # compute the padding here
+    # compute the areas here
+    #     # add 2px padding to any bounding box with a dimension < 2px
+    # train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
+    # test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
+    # train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
+    # test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
     print("Added padding where needed.")
 
     ## add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
