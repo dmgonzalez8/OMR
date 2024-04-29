@@ -43,8 +43,13 @@ def get_image_with_bboxes(image_path_or_bin, bounding_boxes, show=False):
     else: 
         # Draw each bounding box
         for bbox in bounding_boxes:
-            # Orthogonal bounding box (x1, y1, x2, y2)
-            draw.rectangle(bbox, outline='red', width=2)
+            # Ensure the bounding box coordinates are in the correct order
+            x1, y1, x2, y2 = bbox
+            x_min, x_max = sorted([x1, x2])
+            y_min, y_max = sorted([y1, y2])
+            
+            # Draw rectangle
+            draw.rectangle([x_min, y_min, x_max, y_max], outline='red', width=2)
 
     # Show the image
     if show: image.show()
@@ -62,8 +67,8 @@ def apply_blur(image_path_or_bin, max_blur_radius=3):
     blur_radius = random.randint(1, max_blur_radius)
         
     # Define the area to blur (x1, y1, x2, y2)
-    x1 = random.randint(0, image.width*0.5)
-    y1 = random.randint(0, image.width*0.5)
+    x1 = random.randint(0, int(image.width*0.5))
+    y1 = random.randint(0, int(image.width*0.5))
     x2 = x1 + int(image.width*0.5) 
     y2 = y1 + int(image.width*0.5) 
 
@@ -110,14 +115,14 @@ def apply_zoom(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
             new_x = coords[i] * scale_factor + pad_width
             new_y = coords[i+1] * scale_factor + pad_height
             adjusted_coords.extend([new_x, new_y])
-        new_oriented_bboxes.append(tuple(adjusted_coords))
+        new_oriented_bboxes.append(adjusted_coords)
     new_orthogonal_bboxes = []
     for x1, y1, x2, y2 in orthogonal_bboxes:
         new_x1 = x1 * scale_factor + pad_width
         new_y1 = y1 * scale_factor + pad_height
         new_x2 = x2 * scale_factor + pad_width
         new_y2 = y2 * scale_factor + pad_height
-        new_orthogonal_bboxes.append((new_x1, new_y1, new_x2, new_y2))
+        new_orthogonal_bboxes.append([new_x1, new_y1, new_x2, new_y2])
 
     return result_image, new_orthogonal_bboxes, new_oriented_bboxes
 
@@ -135,15 +140,15 @@ def apply_rotation(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     angle = np.random.uniform(-max_rotation_deg, max_rotation_deg)
 
     # Rotate image with a white background
-    rotated_image = image.rotate(angle, expand=True, fillcolor='white')  # Ensure background is white
+    rotated_image = image.rotate(angle, expand=False, fillcolor='white')  # Ensure background is white
 
     # Crop the image to the original dimensions
-    new_width, new_height = rotated_image.size
-    left = (new_width - width) // 2
-    top = (new_height - height) // 2
-    right = left + width
-    bottom = top + height
-    rotated_image = rotated_image.crop((left, top, right, bottom))
+    # new_width, new_height = rotated_image.size
+    # left = (new_width - width) // 2
+    # top = (new_height - height) // 2
+    # right = left + width
+    # bottom = top + height
+    # rotated_image = rotated_image.crop((left, top, right, bottom))
 
     # Calculate new bounding boxes
     new_orthogonal_bboxes = []
@@ -166,7 +171,7 @@ def apply_rotation(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
         # Convert back to bounding box format
         min_x, min_y = min(new_box[::2]), min(new_box[1::2])
         max_x, max_y = max(new_box[::2]), max(new_box[1::2])
-        new_orthogonal_bboxes.append((min_x, min_y, max_x, max_y))
+        new_orthogonal_bboxes.append([min_x, min_y, max_x, max_y])
 
     # Process oriented bounding boxes
     for box in oriented_bboxes:
@@ -351,7 +356,7 @@ def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     resized_img = img.resize(new_size, Image.LANCZOS)        
     
     # Save the padded resized image
-    padded_img = Image.new("RGB", (target_width, target_height), "white")
+    padded_img = Image.new("RGB", (int(target_width), int(target_height)), "white")
     padded_img.paste(resized_img, (int(padding_delta_x), int(padding_delta_y)))        
     
     # Find the real scaling factor and padding delta x, y to calculate the new coordinates
@@ -372,7 +377,7 @@ def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
                                         pad_x=real_padding_delta_x, 
                                         pad_y=real_padding_delta_y)   
          
-    return padded_img, new_oriented_bboxes, new_orthogonal_bboxes
+    return padded_img, new_orthogonal_bboxes, new_oriented_bboxes
 
 
 def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,

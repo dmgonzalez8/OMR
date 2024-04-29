@@ -37,12 +37,12 @@ def merge_close_boxes(data, merge_radius=20):
         merged_data.append({
             'filename': subset.iloc[0]['filename'],
             'a_bbox': [x_min, y_min, x_max, y_max],
-            'o_bbox': [x_min, y_min, x_max, y_min, x_min, y_max, x_max, y_max],
+            'o_bbox': [x_min, y_min, x_min, y_max, x_max, y_max, x_max, y_min],
             'padded_a_bbox': [x_min, y_min, x_max, y_max],
-            'padded_o_bbox': [x_min, y_min, x_max, y_min, x_min, y_max, x_max, y_max],
+            'padded_o_bbox': [x_min, y_min, x_min, y_max, x_max, y_max, x_max, y_min],
             'area': (x_max - x_min) * (y_max - y_min),
-            'width': -1, # this is updated later
-            'height': -1 # this is updated later
+            'width': -1, # this is updated later (it's the image dimension, NOT the bbox)
+            'height': -1 # this is updated later (it's the image dimension, NOT the bbox)
         })
 
     # Create a new DataFrame with the merged data

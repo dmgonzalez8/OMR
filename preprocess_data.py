@@ -45,7 +45,7 @@ def extract_info(comment):
 """end of helper functions for relative positions and durations"""
 
 """start of bounding box helper functions"""
-def adjust_oriented_bbox(obb):
+def add_padding_oriented(obb):
     xs = obb[::2]  # Extract all x coordinates
     ys = obb[1::2]  # Extract all y coordinates
     
@@ -59,7 +59,7 @@ def adjust_oriented_bbox(obb):
     adjusted_obb = [val for pair in zip(xs, ys) for val in pair]
     return adjusted_obb
 
-def adjust_bbox(bbox):
+def add_padding(bbox):
     if len(bbox)==4:
         x_min, y_min, x_max, y_max = bbox
         if x_min == x_max:
@@ -70,7 +70,7 @@ def adjust_bbox(bbox):
             y_max += 1
         return [x_min, y_min, x_max, y_max]
     else:
-        return adjust_oriented_bbox(bbox)
+        return add_padding_oriented(bbox)
     
 def corners_to_yolo(bbox, img_width, img_height):
     polygon = Polygon([(bbox[i], bbox[i + 1]) for i in range(0, len(bbox), 2)])
@@ -108,7 +108,7 @@ def corners_to_yolo(bbox, img_width, img_height):
 
     return [center_x, center_y, width, height, angle]
     
-def apply_corners_to_yolo(row):
+def to_yolo(row):
     # convert corners to YOLO format for each row in the DataFrame
     return corners_to_yolo(row['o_bbox'], row['width'], row['height'])
 
@@ -227,14 +227,13 @@ def preprocess_data(json_directory, labels_path):
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
 
     #
-    ## add code here to process the barlines into full measure lines or bboxes
+    ## Eren add code here to process the barlines into full measure lines or bboxes
     ## train_barlines = process_barlines(train_barlines)
     #
     
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
     test_data = pd.concat([test_data, test_barlines], ignore_index=True)
     print("Processed barlines into main df.")
-
     # areas/yolo used to be here
 
     # AGGREGATE everything so that each row contains all the data for a single image
@@ -272,43 +271,106 @@ def preprocess_data(json_directory, labels_path):
     train_data_agg['resized'] = 0
     test_data_agg['resized'] = 0
     # get the width and height for the model- all bigger/smaller images will be resized to this 
-    width = train_data_agg['width'].median()
-    height = train_data_agg['height'].median() 
+    median_width = int(train_data_agg['width'].median())
+    median_height = int(train_data_agg['height'].median())
+ 
+    # image distortion - make a new folder to hold the processed images
+    image_path = os.path.join(json_directory, 'images')
+    output_path = os.path.join(json_directory, 'processed_images')
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
-    # Eren
-    ## resize images that are too big or small and update bounding boxes and image data
-    ## add distortion to all images
-    #
-    # make a new folder to hold the processed images
-    # for every row in the df:
-    #   if the image is the correct size:
-    #        img, abb, obb = apply_random_distortion(image, a_bboxes, o_bboxes)
-    #        update df with new bboxes and new image filename/path
-    #   else:
-    #       resized_img = resize_image()
-    #       img, abb, obb = apply_random_distortion(resized_image, a_bboxes, o_bboxes)
-    #       update df with new bboxes, new image filename/path, new image width/height,
-    #          set resized=1
-    # for every row with resized==1, 
-    print("Image resizing and distortion complete.")
+    for index, row in tqdm(train_data_agg.iterrows()):
+        source_image = os.path.join(image_path, row['filename'])
+        a_bboxes = row['a_bbox']
+        o_bboxes = row['o_bbox']
+        resized_img = None
+        new_abbs, new_obbs = None, None
+        # resize if needed
+        if row['width'] != median_width or row['height'] != median_height:
+            resized_img, new_abbs, new_obbs = resize_image(source_image, 
+                                                          a_bboxes, 
+                                                          o_bboxes, 
+                                                          median_width, 
+                                                          median_height)
+            # update df
+            train_data_agg.at[index, 'a_bbox'] = new_abbs
+            train_data_agg.at[index, 'o_bbox'] = new_obbs
+            train_data_agg.at[index, 'width'] = median_width
+            train_data_agg.at[index, 'height'] = median_height
+            train_data_agg.at[index, 'resized'] = 1
 
-    # compute the features that depend on the final bounding boxes here
-    #     # add 2px padding to any bounding box with a dimension < 2px
-    # train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
-    # test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
-    # train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
-    # test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
+        if resized_img is not None:
+            output_img, new_abbs, new_obbs = apply_random_distortion(resized_img, 
+                                                                     new_abbs, 
+                                                                     new_obbs)
+        else:
+            output_img, new_abbs, new_obbs = apply_random_distortion(source_image, 
+                                                                     a_bboxes, 
+                                                                     o_bboxes)
+        # write image to disk
+        output_img_path = os.path.join(output_path, row['filename'])
+        output_img.save(output_img_path)  # Save the processed image
+        # update df
+        train_data_agg.at[index, 'a_bbox'] = new_abbs
+        train_data_agg.at[index, 'o_bbox'] = new_obbs
+
+    for index, row in tqdm(test_data_agg.iterrows()):
+        source_image = os.path.join(image_path, row['filename'])
+        a_bboxes = row['a_bbox']
+        o_bboxes = row['o_bbox']
+        resized_img = None
+        new_abbs, new_obbs = None, None
+        # resize if needed
+        if row['width'] != median_width or row['height'] != median_height:
+            resized_img, new_abbs, new_obbs = resize_image(source_image, 
+                                                          a_bboxes, 
+                                                          o_bboxes, 
+                                                          median_width, 
+                                                          median_height)
+            # update df
+            test_data_agg.at[index, 'a_bbox'] = new_abbs
+            test_data_agg.at[index, 'o_bbox'] = new_obbs
+            test_data_agg.at[index, 'width'] = median_width
+            test_data_agg.at[index, 'height'] = median_height
+            test_data_agg.at[index, 'resized'] = 1
+
+        if resized_img is not None:
+            output_img, new_abbs, new_obbs = apply_random_distortion(resized_img, 
+                                                                     new_abbs, 
+                                                                     new_obbs)
+        else:
+            output_img, new_abbs, new_obbs = apply_random_distortion(source_image, 
+                                                                     a_bboxes, 
+                                                                     o_bboxes)
+        # write image to disk
+        output_img_path = os.path.join(output_path, row['filename'])
+        output_img.save(output_img_path)  # Save the processed image
+        # update df
+        test_data_agg.at[index, 'a_bbox'] = new_abbs
+        test_data_agg.at[index, 'o_bbox'] = new_obbs
+    print("Image resize and distortion complete.")
+
+    ## compute the features that depend on the final bounding boxes here
+    # add 2px padding to any bounding box with a dimension < 2px
+    train_data_agg['padded_a_bbox'] = train_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
+    train_data_agg['padded_o_bbox'] = train_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
+    test_data_agg['padded_a_bbox'] = test_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
+    test_data_agg['padded_o_bbox'] = test_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     print("Added padding where needed.")
-    #     # # add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
-    # # tqdm.pandas() 
-    # # train_data['yolo_bbox'] = train_data.progress_apply(apply_corners_to_yolo, axis=1)
-    # # test_data['yolo_bbox'] = test_data.progress_apply(apply_corners_to_yolo, axis=1)
-    # # add area columns 
-    # train_data['a_area'] = train_data['a_bbox'].apply(calculate_bbox_area)
-    # test_data['a_area'] = test_data['a_bbox'].apply(calculate_bbox_area)
-    # train_data['o_area'] = train_data['o_bbox'].apply(calculate_bbox_area)
-    # test_data['o_area'] = test_data['o_bbox'].apply(calculate_bbox_area)
-    print("Computed (yolo and) areas.")
+
+    ## add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
+    # tqdm.pandas() 
+    # train_data_agg['yolo_box'] = train_data_agg.apply(lambda row: [to_yolo(bbox, row['width'], row['height']) for bbox in row['o_bbox']], axis=1)
+    # test_data_agg['yolo_box'] = test_data_agg.apply(lambda row: [to_yolo(bbox, row['width'], row['height']) for bbox in row['o_bbox']], axis=1)
+    # print("Computed yolo coords.")
+
+    # add area columns 
+    train_data_agg['a_area'] = train_data_agg['a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    test_data_agg['a_area'] = test_data_agg['a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    train_data_agg['o_area'] = train_data_agg['o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    test_data_agg['o_area'] = test_data_agg['o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    print("Computed areas.")
 
     #  save processed data
     train_data_agg.to_csv(json_directory+'train_df_for_model.csv')

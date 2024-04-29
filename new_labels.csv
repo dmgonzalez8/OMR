@@ -208,3 +208,6 @@ old_index,old_id,name,dataset,color,label
 205,135,staff,deepscores,165,155
 206,208,staff,muscima++,165,155
 300,300,barline,n/a,300,156
+301,301,systemMeasure,n/a,301,157
+302,302,staffMeasure,n/a,302,158
+303,303,emptyMeasure,n/a,303,159
