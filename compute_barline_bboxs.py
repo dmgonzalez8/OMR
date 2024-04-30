@@ -51,7 +51,14 @@ def merge_close_boxes(data, merge_radius=20):
 def analyze_image_for_measures(image_path):
 
     ## Eren's code here
-    
+
+    # format for output    
+    data.append({
+        'filename': image_path.split('/')[-1].replace('_seg',''),
+        'a_bbox': orthogonal_bbox,
+        'o_bbox': oriented_bbox
+    })
+
     return pd.DataFrame(data)
 
 def analyze_image_for_barlines(image_path):
@@ -127,25 +134,41 @@ def process_file(json_file, json_directory, segmentation_directory, merge_radius
                                     filename.replace('.png','_seg.png'))
         # Get barlines in a df
         barline_annotations = analyze_image_for_barlines(file_path)
-        # Eren - Get measures in a df
-        measure_annotation = analyze_image_for_measures(file_path)
-        # concat measures and barlines
-        annotations = pd.concat([barline_annotations, measure_annotation],
-                                        ignore_index=True)
-        if not annotations.empty:
+        barline_annotations
+        
+        if not barline_annotations.empty:
             # merge duplicates
-            annotations = merge_close_boxes(annotations, merge_radius)
+            barline_annotations = merge_close_boxes(barline_annotations, merge_radius)
             # update other cells
-            annotations['ann_id'] = [ann_id - i for i in range(len(annotations))]
-            ann_id -= len(annotations)  # Decrement ann_id for next file
-            annotations['label'] = 156
-            annotations['duration'] = -1
-            annotations['rel_position'] = 0
-            annotations['duration_mask'] = 0
-            annotations['rel_position_mask'] = 0
-            barlines_data = pd.concat([barlines_data, annotations],
+            barline_annotations['ann_id'] = [ann_id - i for i in range(len(barline_annotations))]
+            ann_id -= len(barline_annotations)  # Decrement ann_id for next file
+            barline_annotations['label'] = 156
+            barline_annotations['duration'] = -1
+            barline_annotations['rel_position'] = 0
+            barline_annotations['duration_mask'] = 0
+            barline_annotations['rel_position_mask'] = 0
+            barlines_data = pd.concat([barlines_data, barline_annotations],
                                         ignore_index=True)
-    
+        # Eren - Get measures in a df
+        measure_annotations = analyze_image_for_measures(file_path)
+
+        if not measure_annotations.empty:
+            # update other cells
+            measure_annotations['padded_a_bbox'] = measure_annotations['a_obbox']
+            measure_annotations['padded_o_bbox'] = measure_annotations['o_obbox']
+            measure_annotations['area'] = 1
+            measure_annotations['width'] = -1
+            measure_annotations['height'] = -1
+            measure_annotations['ann_id'] = [ann_id - i for i in range(len(measure_annotations))]
+            ann_id -= len(measure_annotations)  # Decrement ann_id for next file
+            measure_annotations['label'] = 157
+            measure_annotations['duration'] = -1
+            measure_annotations['rel_position'] = 0
+            measure_annotations['duration_mask'] = 0
+            measure_annotations['rel_position_mask'] = 0
+            barlines_data = pd.concat([barlines_data, measure_annotations],
+                                        ignore_index=True)
+
     # Save all collected barline data to CSV after processing all files
     if not barlines_data.empty:
         barlines_data.to_csv(output_path, index=False)
