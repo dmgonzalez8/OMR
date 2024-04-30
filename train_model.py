@@ -30,6 +30,8 @@ import ast
 from datetime import datetime
 import argparse
 from torch.nn import DataParallel
+import warnings
+warnings.filterwarnings("ignore")
 
 from preprocess_data import *
 from image_preprocessing import *
@@ -133,7 +135,7 @@ class MusicScoreDataset(Dataset):
 def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
     for epoch in range(num_epochs):
         model.train()
-        total_loss = 0
+        # total_loss = 0
         print(f"Starting epoch {epoch}.")
         for images, targets in train_loader:
             images = list(image.to(device) for image in images)
@@ -141,23 +143,23 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
             targets = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in t.items()} for t in targets]
             # Forward and backward passes
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict)
-            total_loss += losses.item()
+            losses = sum(loss for loss in loss_dict.values())
+            # total_loss += losses.item()
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
         # Validation step
         model.eval()
         with torch.no_grad():
-            val_loss = 0
+            # val_loss = 0
             for images, targets in test_loader:
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
                 loss_dict = model(images, targets)
                 losses = sum(loss for loss in loss_dict)
-                val_loss += losses.item()
+                # val_loss += losses.item()
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}, Total loss: {total_loss}")
-        print(f"Validation Loss: {val_loss / len(test_loader)}")
+        # print(f"Validation Loss: {val_loss / len(test_loader)}")
 
 def main(json_directory, optim, batch=2, num_epochs=10):
     image_directory = os.path.join(json_directory, 'processed_images/')
