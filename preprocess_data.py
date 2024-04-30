@@ -166,12 +166,12 @@ def convert_str_to_list(coord_str):
     return ast.literal_eval(coord_str)
 """end barline processing helpers"""
 
-def preprocess(json_file, json_directory, labels_path):
+def preprocess(json_file, json_directory, labels_path, counter=(0,0)):
     """
     Add docstring
     """
     _, json_file = os.path.split(json_file)
-    print(f'Reading {json_file} ...')
+    print(f'Reading {counter[0]} of {counter[1]}: {json_file} ...')
     # Load the annotation data and labels from their respective files
     input = os.path.join(json_directory, json_file)
     with open(input) as file:
@@ -279,7 +279,7 @@ def preprocess(json_file, json_directory, labels_path):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    for index, row in tqdm(train_data_agg.iterrows()):
+    for index, row in train_data_agg.iterrows():
         source_image = os.path.join(image_path, row['filename'])
         a_bboxes = row['a_bbox']
         o_bboxes = row['o_bbox']
@@ -353,12 +353,12 @@ def preprocess_data(json_directory, labels_path, n_jobs=4):
     
     counter = 0
     for json_file in json_files:
+        counter += 1
+        progress_bar = (counter, len(json_files))
         pool.apply_async(preprocess, args=(json_file, 
                                            json_directory, 
-                                           labels_path))
-        counter += 1
-        print(f"Completed file {counter} of {len(json_files)}.")
-    
+                                           labels_path,
+                                           progress_bar))
     pool.close()
     pool.join()
 
