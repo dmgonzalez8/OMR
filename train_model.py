@@ -114,8 +114,8 @@ class MusicScoreDataset(Dataset):
         target = {}
         # there must be boxes for the model
         target["boxes"] = a_boxes
-        target["oboxes"] = o_boxes
-        target["masks"] = masks
+        # target["oboxes"] = o_boxes
+        # target["masks"] = masks
         # there must be labels
         target["labels"] = labels
         target["durations"] = durations
@@ -124,8 +124,8 @@ class MusicScoreDataset(Dataset):
         target["rel_position_masks"] = rel_position_masks
         # target["image_id"] = image_id
         target["a_area"] = a_area
-        target["o_area"] = o_area
-        target["mask_area"] = mask_area
+        # target["o_area"] = o_area
+        # target["mask_area"] = mask_area
         target["iscrowd"] = iscrowd
 
         return image, target
