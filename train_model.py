@@ -171,4 +171,4 @@ if __name__ == "__main__":
     train_df, test_df, unique_labels = preprocess_data(args.json_directory, args.labels_path)
     
     # train the model
-    train_faster_rcnn(train_df, test_df, args.image_directory, len(unique_labels))
+    train_faster_rcnn(train_df, test_df, args.image_directory, unique_labels)

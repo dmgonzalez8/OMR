@@ -48,6 +48,11 @@ def merge_close_boxes(data, merge_radius=20):
     # Create a new DataFrame with the merged data
     return pd.DataFrame(merged_data)
 
+def analyze_image_for_measures(image_path):
+
+    ## Eren's code here
+    
+    return pd.DataFrame(data)
 
 def analyze_image_for_barlines(image_path):
     """ 
@@ -120,8 +125,13 @@ def process_file(json_file, json_directory, segmentation_directory, merge_radius
     for filename in tqdm(filenames):
         file_path = os.path.join(segmentation_directory,
                                     filename.replace('.png','_seg.png'))
-        annotations = analyze_image_for_barlines(file_path)
-
+        # Get barlines in a df
+        barline_annotations = analyze_image_for_barlines(file_path)
+        # Eren - Get measures in a df
+        measure_annotation = analyze_image_for_measures(file_path)
+        # concat measures and barlines
+        annotations = pd.concat([barline_annotations, measure_annotation],
+                                        ignore_index=True)
         if not annotations.empty:
             # merge duplicates
             annotations = merge_close_boxes(annotations, merge_radius)
