@@ -190,7 +190,7 @@ def apply_rotation(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
     return rotated_image, new_orthogonal_bboxes, new_oriented_bboxes
 
-def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
+"""def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
                horizontal_skew_range=0.05, vertical_skew_range=0.05):
     # Load the image
     if type(image_path_or_bin) is str:
@@ -253,7 +253,7 @@ def apply_skew(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
             new_box.extend(transformed_point[0][0])
         new_oriented_bboxes.append(new_box)  # Store the four corner points for OBBs
 
-    return skewed_image, new_orthogonal_bboxes, new_oriented_bboxes
+    return skewed_image, new_orthogonal_bboxes, new_oriented_bboxes"""
 
 def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes, 
                max_warp_factor=0.05):
@@ -295,6 +295,7 @@ def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
     # Adjust orthogonal and oriented bounding boxes
     new_orthogonal_bboxes = []
     new_oriented_bboxes = []
+    new_mask_bboxes = []
 
     # Adjust orthogonal bounding boxes
     for box in orthogonal_bboxes:
@@ -322,9 +323,12 @@ def apply_warp(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
             transformed_points.extend(transformed_point[0][0])
 
         # Store the transformed points as the new oriented bounding box
-        new_oriented_bboxes.append(transformed_points)
+        new_mask_bboxes.append(transformed_points)
+        rect = cv2.minAreaRect(np.array(transformed_points).reshape(-1, 2))
+        box = cv2.boxPoints(rect)
+        new_oriented_bboxes.append(box.flatten().tolist())
 
-    return warped_image_pil, new_orthogonal_bboxes, new_oriented_bboxes
+    return warped_image_pil, new_orthogonal_bboxes, new_oriented_bboxes, new_mask_bboxes
 
 """help function for resize_image"""
 def adjust_bbox(o_bbox_lists, scaling_factor_x, scaling_factor_y, pad_x, pad_y):
@@ -389,11 +393,13 @@ def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxe
                                        oriented_bboxes, max_rotation_deg)
         img, abb, obb = apply_zoom(img, abb, obb, max_zoom)
         image_pil = apply_blur(img, max_blur_radius)
+        mask = obb
     else:
-        img, abb, obb = apply_warp(image_path_or_bin, orthogonal_bboxes, 
-                                   oriented_bboxes, max_warp_factor)  
+        img, abb, obb, mask = apply_warp(image_path_or_bin, orthogonal_bboxes, 
+                                         oriented_bboxes, max_warp_factor)  
         image_pil = apply_blur(img, max_blur_radius)
 
     new_orthogonal_bboxes = abb
     new_oriented_bboxes = obb
-    return image_pil, new_orthogonal_bboxes, new_oriented_bboxes 
+    new_mask_bboxes = mask
+    return image_pil, new_orthogonal_bboxes, new_oriented_bboxes, new_mask_bboxes

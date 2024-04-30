@@ -30,30 +30,50 @@ def select_highest_precedence(label_list):
     return max(label_list)
 """end of helper functions for remapping old cat_id to new label"""
 
-"""start of helper functions for relative positions and durations"""
+"""start of helper functions for relative positions durations"""
 def extract_info(comment):
     # extract duration and relative position from comments
     duration = re.search(r'duration:(\d+);', comment)
     rel_position = re.search(r'rel_position:(-?\d+);', comment)
     return [int(duration.group(1)) if duration else None, 
             int(rel_position.group(1)) if rel_position else None]
-##
-## Eric- add code here to impute the relative positions
-# Function to estimate missing 'rel_position' based on known positions
-def estimate_missing_positions(series):
-    # Use some method to estimate missing values
-    return series.interpolate(method='linear', limit_direction='both')
 
+def compute_relative_positions(row):
+    bboxes = row['a_bbox']
+    labels = row['label']
+    rel_positions = row['rel_position']
 
-def process_dataframe(df):
-    # First, extract info from comments
-    df[['duration', 'rel_position']] = df['comments'].apply(extract_info).tolist()
+    # Extract staff information
+    staff_indices = [i for i, label in enumerate(labels) if label == 155]
+    if not staff_indices:  # If there are no staff lines, skip processing
+        return rel_positions
+    staff_centers = [(bboxes[i][1] + bboxes[i][3]) / 2 for i in staff_indices]
+    staff_scales = [(bboxes[i][3] - bboxes[i][1]) / 8 for i in staff_indices]
 
-    # Apply the imputation function to the 'rel_position' column grouped by 'image_id'
-    df['rel_position'] = df.groupby('img_id')['rel_position'].transform(estimate_missing_positions)
+    # Compute relative positions for non-staff elements where rel_position is NaN
+    for i in range(len(bboxes)):
+        if np.isnan(rel_positions[i]) and labels[i] != 155:
+            obj_center = (bboxes[i][1] + bboxes[i][3]) / 2
+            # Find the closest staff
+            distances = [abs(obj_center - staff_center) for staff_center in staff_centers]
+            closest_staff_index = np.argmin(distances)
+            # Compute relative position using the closest staff's scale
+            if staff_scales[closest_staff_index] != 0:
+                rel_positions[i] = round(distances[closest_staff_index] / staff_scales[closest_staff_index],1)
+        elif labels[i] == 155:
+            rel_positions[i] = 0
 
-    return df
-##
+    return rel_positions
+
+def adjust_masks(row):
+    # Unpack the relevant columns
+    positions = row['rel_position']
+    masks = row['rel_position_mask']
+    
+    # Update the masks based on the positions
+    new_masks = [-1 if pos == 50 else mask for pos, mask in zip(positions, masks)]
+    
+    return new_masks
 """end of helper functions for relative positions and durations"""
 
 """start of bounding box helper functions"""
@@ -83,7 +103,22 @@ def add_padding(bbox):
         return [x_min, y_min, x_max, y_max]
     else:
         return add_padding_oriented(bbox)
-    
+
+def calculate_bbox_area(bbox):
+    if len(bbox) == 4:  # Orthogonal bbox [x_min, y_min, x_max, y_max]
+        x_min, y_min, x_max, y_max = bbox
+        return int((x_max - x_min) * (y_max - y_min))
+    elif len(bbox) == 8:  # Oriented bbox [x1, y1, x2, y2, x3, y3, x4, y4]
+        # Rearrange into (x, y) pairs
+        points = [(bbox[i], bbox[i + 1]) for i in range(0, len(bbox), 2)]
+        # Create a polygon and calculate the area
+        polygon = Polygon(points)
+        return int(polygon.area)
+    else:
+        raise ValueError("Invalid bounding box format")
+"""end of bounding box helper functions"""
+
+"""start of yolo helper functions"""
 def corners_to_yolo(bbox, img_width, img_height):
     polygon = Polygon([(bbox[i], bbox[i + 1]) for i in range(0, len(bbox), 2)])
     min_rect = polygon.minimum_rotated_rectangle
@@ -123,30 +158,11 @@ def corners_to_yolo(bbox, img_width, img_height):
 def to_yolo(row):
     # convert corners to YOLO format for each row in the DataFrame
     return corners_to_yolo(row['o_bbox'], row['width'], row['height'])
-
-def calculate_bbox_area(bbox):
-    if len(bbox) == 4:  # Orthogonal bbox [x_min, y_min, x_max, y_max]
-        x_min, y_min, x_max, y_max = bbox
-        return int((x_max - x_min) * (y_max - y_min))
-    elif len(bbox) == 8:  # Oriented bbox [x1, y1, x2, y2, x3, y3, x4, y4]
-        # Rearrange into (x, y) pairs
-        points = [(bbox[i], bbox[i + 1]) for i in range(0, len(bbox), 2)]
-        # Create a polygon and calculate the area
-        polygon = Polygon(points)
-        return int(polygon.area)
-    else:
-        raise ValueError("Invalid bounding box format")
-"""end of bounding box helper functions"""
+"""end of yolo helper functions"""
 
 """start barline processing helpers"""
 def convert_str_to_list(coord_str):
     return ast.literal_eval(coord_str)
-
-#
-# more code here to compute full barlines/measures
-# input - df from below
-# output - df to be concatenated below
-#
 """end barline processing helpers"""
 
 def preprocess_data(json_directory, labels_path):
@@ -199,15 +215,12 @@ def preprocess_data(json_directory, labels_path):
     # create a mask for the rel_position to mark where the rel_position is relevent
     train_obboxs['rel_position_mask'] = train_obboxs['rel_position'].notna().astype(int)
     test_obboxs['rel_position_mask'] = test_obboxs['rel_position'].notna().astype(int)
-    ##
-    ## Eric- the two lines of code can be adjusted to use your vectorize function
-    # set items with no rel_position to 50 (nothing has a position this high)
+    # set items with no position to 50 (nothing is that high)
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
     test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
-    print("Imputed durations and positions.")
+    print("Updated durations and relative positions.")
 
     # padding used to be here
-
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
     test_obboxs.reset_index(inplace=True)
@@ -237,12 +250,6 @@ def preprocess_data(json_directory, labels_path):
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
     test_barlines['a_bbox'] = test_barlines['a_bbox'].apply(convert_str_to_list)
     test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
-
-    #
-    ## Eren add code here to process the barlines into full measure lines or bboxes
-    ## train_barlines = process_barlines(train_barlines)
-    #
-    
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
     test_data = pd.concat([test_data, test_barlines], ignore_index=True)
     print("Processed barlines into main df.")
@@ -279,9 +286,23 @@ def preprocess_data(json_directory, labels_path):
     }).reset_index()
     print("Aggregated dfs down to single row per image.")
 
+    # impute the relative positions - this isnt working, lots of problems (consider percussion staff)
+    # train_data_agg['rel_position'] = train_data_agg.apply(compute_relative_positions, axis=1)
+    # test_data_agg['rel_position'] = test_data_agg.apply(compute_relative_positions, axis=1)
+    # train_data_agg['rel_position_mask'] = train_data_agg.apply(adjust_masks, axis=1)
+    # test_data_agg['rel_position_mask'] = test_data_agg.apply(adjust_masks, axis=1)
+    # train_rows, test_rows = len(train_data_agg), len(test_data_agg)
+    # train_data_agg = train_data_agg[train_data_agg['rel_position'].apply(lambda x: all(not np.isnan(pos) for pos in x))]
+    # test_data_agg = test_data_agg[test_data_agg['rel_position'].apply(lambda x: all(not np.isnan(pos) for pos in x))]
+    # print(f"Imputed relative positions and dropped {train_rows-len(train_data_agg)} train records")
+    # print(f"Imputed relative positions and dropped {test_rows-len(test_data_agg)} test records")
+
     # add a flag for resizing (will be set by future functions)
     train_data_agg['resized'] = 0
     test_data_agg['resized'] = 0
+    # make a new column for mask bbox (experimental output from warp image)
+    train_data_agg['mask_bbox'] = train_data_agg['o_bbox']
+    test_data_agg['mask_bbox'] = test_data_agg['o_bbox']
     # get the width and height for the model- all bigger/smaller images will be resized to this 
     median_width = int(train_data_agg['width'].median())
     median_height = int(train_data_agg['height'].median())
@@ -301,10 +322,10 @@ def preprocess_data(json_directory, labels_path):
         # resize if needed
         if row['width'] != median_width or row['height'] != median_height:
             resized_img, new_abbs, new_obbs = resize_image(source_image, 
-                                                          a_bboxes, 
-                                                          o_bboxes, 
-                                                          median_width, 
-                                                          median_height)
+                                                           a_bboxes, 
+                                                           o_bboxes, 
+                                                           median_width, 
+                                                           median_height)
             # update df
             train_data_agg.at[index, 'a_bbox'] = new_abbs
             train_data_agg.at[index, 'o_bbox'] = new_obbs
@@ -313,19 +334,20 @@ def preprocess_data(json_directory, labels_path):
             train_data_agg.at[index, 'resized'] = 1
 
         if resized_img is not None:
-            output_img, new_abbs, new_obbs = apply_random_distortion(resized_img, 
-                                                                     new_abbs, 
-                                                                     new_obbs)
+            output_img, new_abbs, new_obbs, masks = apply_random_distortion(resized_img, 
+                                                                            new_abbs, 
+                                                                            new_obbs)
         else:
-            output_img, new_abbs, new_obbs = apply_random_distortion(source_image, 
-                                                                     a_bboxes, 
-                                                                     o_bboxes)
+            output_img, new_abbs, new_obbs, masks = apply_random_distortion(source_image, 
+                                                                            a_bboxes, 
+                                                                            o_bboxes)
         # write image to disk
         output_img_path = os.path.join(output_path, row['filename'])
         output_img.save(output_img_path)  # Save the processed image
         # update df
         train_data_agg.at[index, 'a_bbox'] = new_abbs
         train_data_agg.at[index, 'o_bbox'] = new_obbs
+        train_data_agg.at[index, 'mask_bbox'] = masks
 
     for index, row in tqdm(test_data_agg.iterrows()):
         source_image = os.path.join(image_path, row['filename'])
@@ -336,10 +358,10 @@ def preprocess_data(json_directory, labels_path):
         # resize if needed
         if row['width'] != median_width or row['height'] != median_height:
             resized_img, new_abbs, new_obbs = resize_image(source_image, 
-                                                          a_bboxes, 
-                                                          o_bboxes, 
-                                                          median_width, 
-                                                          median_height)
+                                                           a_bboxes, 
+                                                           o_bboxes, 
+                                                           median_width, 
+                                                           median_height)
             # update df
             test_data_agg.at[index, 'a_bbox'] = new_abbs
             test_data_agg.at[index, 'o_bbox'] = new_obbs
@@ -348,19 +370,20 @@ def preprocess_data(json_directory, labels_path):
             test_data_agg.at[index, 'resized'] = 1
 
         if resized_img is not None:
-            output_img, new_abbs, new_obbs = apply_random_distortion(resized_img, 
-                                                                     new_abbs, 
-                                                                     new_obbs)
+            output_img, new_abbs, new_obbs, masks = apply_random_distortion(resized_img, 
+                                                                            new_abbs, 
+                                                                            new_obbs)
         else:
-            output_img, new_abbs, new_obbs = apply_random_distortion(source_image, 
-                                                                     a_bboxes, 
-                                                                     o_bboxes)
+            output_img, new_abbs, new_obbs, masks = apply_random_distortion(source_image, 
+                                                                            a_bboxes, 
+                                                                            o_bboxes)
         # write image to disk
         output_img_path = os.path.join(output_path, row['filename'])
         output_img.save(output_img_path)  # Save the processed image
         # update df
         test_data_agg.at[index, 'a_bbox'] = new_abbs
         test_data_agg.at[index, 'o_bbox'] = new_obbs
+        test_data_agg.at[index, 'mask_bbox'] = masks
     print("Image resize and distortion complete.")
 
     ## compute the features that depend on the final bounding boxes here
@@ -369,14 +392,8 @@ def preprocess_data(json_directory, labels_path):
     train_data_agg['padded_o_bbox'] = train_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     test_data_agg['padded_a_bbox'] = test_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     test_data_agg['padded_o_bbox'] = test_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
-    # compute the features that depend on the final bounding boxes here
-    # compute the padding here
-    # compute the areas here
-    #     # add 2px padding to any bounding box with a dimension < 2px
-    # train_obboxs['padded_a_bbox'] = train_obboxs['a_bbox'].apply(adjust_bbox)
-    # test_obboxs['padded_a_bbox'] = test_obboxs['a_bbox'].apply(adjust_bbox)
-    # train_obboxs['padded_o_bbox'] = train_obboxs['o_bbox'].apply(adjust_bbox)
-    # test_obboxs['padded_o_bbox'] = test_obboxs['o_bbox'].apply(adjust_bbox)
+    train_data_agg['padded_mask'] = train_data_agg['mask_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
+    test_data_agg['padded_mask'] = test_data_agg['mask_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     print("Added padding where needed.")
 
     ## add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
@@ -386,15 +403,19 @@ def preprocess_data(json_directory, labels_path):
     # print("Computed yolo coords.")
 
     # add area columns 
-    train_data_agg['a_area'] = train_data_agg['a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    test_data_agg['a_area'] = test_data_agg['a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    train_data_agg['o_area'] = train_data_agg['o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    test_data_agg['o_area'] = test_data_agg['o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    train_data_agg['padded_a_area'] = train_data_agg['padded_a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    test_data_agg['padded_a_area'] = test_data_agg['padded_a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    train_data_agg['padded_o_area'] = train_data_agg['padded_o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    test_data_agg['padded_o_area'] = test_data_agg['padded_o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    train_data_agg['padded_mask_area'] = train_data_agg['padded_mask'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
+    test_data_agg['padded_mask_area'] = test_data_agg['padded_mask'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
     print("Computed areas.")
 
     #  save processed data
     train_data_agg.to_csv(json_directory+'train_df_for_model.csv')
     test_data_agg.to_csv(json_directory+'test_df_for_model.csv')
-    print("Processing complete, saved csv files.")
+    train_data_agg.to_pickle(json_directory+'train_df_for_model.pkl')
+    test_data_agg.to_pickle(json_directory+'test_df_for_model.pkl')
+    print("Processing complete, saved csv and pickle files.")
 
     return train_data_agg, test_data_agg
