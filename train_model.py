@@ -148,17 +148,17 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
-        # Validation step
-        model.eval()
-        with torch.no_grad():
-            # val_loss = 0
-            for images, targets in test_loader:
-                images = list(img.to(device) for img in images)
-                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-                loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                # val_loss += losses.item()
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}, Total loss: {total_loss}")
+        # # Validation step
+        # model.eval()
+        # with torch.no_grad():
+        #     # val_loss = 0
+        #     for images, targets in test_loader:
+        #         images = list(img.to(device) for img in images)
+        #         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        #         loss_dict = model(images, targets)
+        #         losses = sum(loss for loss in loss_dict.values())
+        #         # val_loss += losses.item()
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
         # print(f"Validation Loss: {val_loss / len(test_loader)}")
 
 def main(json_directory, optim, batch=2, num_epochs=10):
