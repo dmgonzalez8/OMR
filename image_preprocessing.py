@@ -385,8 +385,8 @@ def resize_image(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
 
 
 def apply_random_distortion(image_path_or_bin, orthogonal_bboxes, oriented_bboxes,
-                            max_blur_radius=3, max_rotation_deg=4, max_zoom=1.2,
-                            max_warp_factor = 0.04):
+                            max_blur_radius=3, max_rotation_deg=2.5, max_zoom=1.1,
+                            max_warp_factor = 0.025):
     # write a function to either blur+warp or blur+rotate+zoom
     if random.randint(0,1): # equal choice of either warping or zoom/rotation
         img, abb, obb = apply_rotation(image_path_or_bin, orthogonal_bboxes, 

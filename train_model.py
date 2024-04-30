@@ -193,7 +193,9 @@ def main(json_directory, optim, batch=2, num_epochs=10):
     
     train(device, model, train_loader, test_loader, optimizer, num_epochs)
 
-    torch.save(model.state_dict(), f'./faster_rcnn_{datetime.now().strftime("%Y%m%d%H%M%S")}.pt')
+    filename = f'./faster_rcnn_{datetime.now().strftime("%Y%m%d%H%M%S")}.pt'
+    torch.save(model.state_dict(), filename)
+    print(f"Saved model to: "+filename)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process data into pickle binaries for DataLoader')
