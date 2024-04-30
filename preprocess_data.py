@@ -170,6 +170,7 @@ def preprocess(json_file, json_directory, labels_path):
     """
     Add docstring
     """
+    _, json_file = os.path.split(json_file)
     print(f'Reading {json_file} ...')
     # Load the annotation data and labels from their respective files
     input = os.path.join(json_directory, json_file)
@@ -226,9 +227,9 @@ def preprocess(json_file, json_directory, labels_path):
     print("Merged bboxs and images together.")
 
     # concat the barlines annotations
-    # barlines_path = json_file.replace('.json','_barlines.pkl')
+    # barlines_path = os.path.join(json_directory, json_file.replace('.json','_barlines.pkl'))
     # train_barlines = pd.read_pickle(barlines_path)
-    barlines_path = json_file.replace('.json','_barlines.csv')
+    barlines_path = os.path.join(json_directory, json_file.replace('.json','_barlines.csv'))
     train_barlines = pd.read_csv(barlines_path)
     train_barlines['a_bbox'] = train_barlines['a_bbox'].apply(convert_str_to_list)
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
@@ -336,8 +337,8 @@ def preprocess(json_file, json_directory, labels_path):
     print("Computed areas.")
 
     #  save processed data
-    out_path_csv = json_file.replace('.json','.csv')
-    out_path_pkl = json_file.replace('.json','.pkl')
+    out_path_csv = os.path.join(json_directory, json_file.replace('.json','.csv'))
+    out_path_pkl = os.path.join(json_directory, json_file.replace('.json','.pkl'))
     train_data_agg.to_csv(out_path_csv)
     train_data_agg.to_pickle(out_path_pkl)
     unique_labels.to_csv(os.path.join(json_directory, 'unique_labels.csv'))

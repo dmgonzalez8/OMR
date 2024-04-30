@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.datasets import CocoDetection
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torchvision.transforms as T
-from torch.optim import SGD, Adam, Adadelta
+from torch.optim import SGD, Adam, Adadelta, AdamW, RMSprop
 import torchvision
 from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
@@ -28,6 +28,7 @@ from math import radians, cos, sin
 import cv2
 import ast
 from datetime import datetime
+import argparse
 
 from preprocess_data import *
 from image_preprocessing import *
@@ -107,12 +108,14 @@ class MusicScoreDataset(Dataset):
         a_area = torch.as_tensor([self.annotations['padded_a_area'].iloc[idx]], dtype=torch.float32)
         o_area = torch.as_tensor([self.annotations['padded_o_area'].iloc[idx]], dtype=torch.float32)
         mask_area = torch.as_tensor([self.annotations['padded_mask_area'].iloc[idx]], dtype=torch.float32)
-        iscrowd = torch.zeros((len(a_boxes),), dtype=torch.int64)  # Assuming no crowd
+        iscrowd = torch.zeros((len(a_boxes)), dtype=torch.int64)  # Assuming no crowd
 
         target = {}
-        target["aboxes"] = a_boxes
+        # there must be boxes for the model
+        target["boxes"] = a_boxes
         target["oboxes"] = o_boxes
         target["masks"] = masks
+        # there must be labels
         target["labels"] = labels
         target["durations"] = durations
         target["rel_positions"] = rel_positions
@@ -126,49 +129,65 @@ class MusicScoreDataset(Dataset):
 
         return image, target
     
-def train(device, model, data_loader, optimizer, num_epochs=10):
-    model.train()
+def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
     for epoch in range(num_epochs):
-        for images, targets in data_loader:
+        model.train()
+        print(f"Starting epoch {epoch}.")
+        for images, targets in train_loader:
             images = list(image.to(device) for image in images)
             # Ensure targets are dictionaries and move them to the appropriate device
             targets = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in t.items()} for t in targets]
-
             # Forward and backward passes
             loss_dict = model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
-
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
-        print(f"Epoch {epoch+1} of {num_epochs}, Loss: {losses.item()}")
+        # Validation step
+        model.eval()
+        with torch.no_grad():
+            for images, targets in test_loader:
+                images = list(img.to(device) for img in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+                model(images, targets)
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
         
-def train_faster_rcnn(train_df, test_df, image_directory, unique_labels):
-
-    # Setup
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    num_classes = len(unique_labels) + 1  # Define the number of classes including background
+def main(json_directory, optim, batch=2, num_epochs=10):
+    image_directory = os.path.join(json_directory, 'processed_images/')
+    train_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_train.pkl'))
+    test_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_test.pkl'))
+    unique_labels = pd.read_pickle(os.path.join(json_directory, 'unique_labels.pkl'))
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    num_classes = len(unique_labels) + 1
     model = get_model(num_classes).to(device)
-    data_loader = DataLoader(MusicScoreDataset(train_df, image_directory), 
-                             batch_size=2, shuffle=True, collate_fn=collate_fn)
-    optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
-    
-    # Start training
-    train(device, model, data_loader, optimizer)
 
-    # export the model
-    torch.save(model.state_dict(), f'./faster_rcnn_{str(datetime.now())}.pt')
+    train_loader = DataLoader(MusicScoreDataset(train_df, image_directory), num_workers=4,
+                              batch_size=batch, shuffle=True, collate_fn=collate_fn)
+    test_loader = DataLoader(MusicScoreDataset(test_df, image_directory), num_workers=4,
+                             batch_size=batch, shuffle=False, collate_fn=collate_fn)
+
+    if optim == "SGD":
+        optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+    elif optim == 'AdamW':
+        optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.01)
+    elif optim == "RMSprop":    
+        optimizer = RMSprop(model.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0.0001, momentum=0.9)
+    elif optim == "Adadelta":    
+        optimizer = Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0.0001)
+    else:
+        optimizer = Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0001)
     
+    train(device, model, train_loader, test_loader, optimizer, num_epochs)
+
+    torch.save(model.state_dict(), f'./faster_rcnn_{datetime.now().strftime("%Y%m%d%H%M%S")}.pt')
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process data into pickle binaries for DataLoader')
     parser.add_argument('json_directory', type=str, help='Root directory with annotation JSONs.')
-    parser.add_argument('image_directory', type=str, help='Directory containing images.')
-    parser.add_argument('labels_path', type=str, help='Path to csv file with labels')
+    parser.add_argument('optimizer', type=str, help='SGD, Adam, Adadelta, AdamW, RMSprop')
+    parser.add_argument('batch_size', type=int, help='Images per batch.')
+    parser.add_argument('num_epochs', type=int, help='How long to train.')
 
     args = parser.parse_args()
-    
-    # preprocess the data and get aggregated dataframes
-    train_df, test_df, unique_labels = preprocess_data(args.json_directory, args.labels_path)
-    
-    # train the model
-    train_faster_rcnn(train_df, test_df, args.image_directory, unique_labels)
+    main(args.json_directory, args.optimizer, args.batch_size, args.num_epochs)
