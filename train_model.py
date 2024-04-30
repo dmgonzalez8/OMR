@@ -141,7 +141,7 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
             targets = [{k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in t.items()} for t in targets]
             # Forward and backward passes
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
+            losses = sum(loss for loss in loss_dict)
             total_loss += losses.item()
             optimizer.zero_grad()
             losses.backward()
@@ -154,7 +154,7 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
                 loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
+                losses = sum(loss for loss in loss_dict)
                 val_loss += losses.item()
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}, Total loss: {total_loss}")
         print(f"Validation Loss: {val_loss / len(test_loader)}")
