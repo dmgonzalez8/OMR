@@ -118,6 +118,8 @@ def process_file(json_file, json_directory, segmentation_directory, merge_radius
 
     output_csv = json_file.replace('.json', '_barlines.csv')
     output_path = os.path.join(output_directory, output_csv)
+    output_pkl = json_file.replace('.json', '_barlines.pkl')
+    output_bin = os.path.join(output_directory, output_pkl)
 
     # Prepare an empty DataFrame to collect all barline data
     barlines_data = pd.DataFrame(columns=['filename', 'a_bbox', 'o_bbox', 
@@ -172,6 +174,7 @@ def process_file(json_file, json_directory, segmentation_directory, merge_radius
     # Save all collected barline data to CSV after processing all files
     if not barlines_data.empty:
         barlines_data.to_csv(output_path, index=False)
+        barlines_data.to_pickle(output_bin)
 
 
 def process_dataset(json_directory, segmentation_directory, n_jobs=4, merge_radius=None):

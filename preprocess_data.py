@@ -15,6 +15,7 @@ from shapely.geometry import Polygon, LineString, Point
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import cv2
 from image_preprocessing import *
+import multiprocessing
 
 """start of helper functions for remapping old cat_id to new label"""
 def map_cat_ids_to_classes(class_mapping, cat_ids):
@@ -165,15 +166,15 @@ def convert_str_to_list(coord_str):
     return ast.literal_eval(coord_str)
 """end barline processing helpers"""
 
-def preprocess_data(json_directory, labels_path):
+def preprocess(json_file, json_directory, labels_path):
     """
     Add docstring
     """
+    print(f'Reading {json_file} ...')
     # Load the annotation data and labels from their respective files
-    with open(json_directory+'deepscores_train.json') as file:
+    input = os.path.join(json_directory, json_file)
+    with open(input) as file:
         train_json = json.load(file)
-    with open(json_directory+'deepscores_test.json') as file:
-        test_json = json.load(file)
     raw_labels = pd.read_csv(labels_path)
     raw_labels.head()
     print("Read JSON complete.")
@@ -187,90 +188,56 @@ def preprocess_data(json_directory, labels_path):
     # extract the images and annotations (obboxs) tables
     train_images = pd.DataFrame(train_json['images'])
     train_obboxs = pd.DataFrame(train_json['annotations']).T
-    test_images = pd.DataFrame(test_json['images'])
-    test_obboxs = pd.DataFrame(test_json['annotations']).T
     train_images.rename(columns={'id': 'img_id'}, inplace=True)
-    test_images.rename(columns={'id': 'img_id'}, inplace=True)
     print("Extracted tables from JSON.")
 
     # update the annotation/obboxs table with the new labels (existing labels have issues)
     class_mapping = dict(zip(raw_labels['old_id'].astype(str), raw_labels['label']))
     train_obboxs['label'] = train_obboxs['cat_id'].apply(lambda x: map_cat_ids_to_classes(class_mapping, x))
-    test_obboxs['label'] = test_obboxs['cat_id'].apply(lambda x: map_cat_ids_to_classes(class_mapping, x))
     train_obboxs['label'] = train_obboxs['label'].apply(clean_labels)
-    test_obboxs['label'] = test_obboxs['label'].apply(clean_labels)
     train_obboxs['label'] = train_obboxs['label'].apply(select_highest_precedence)
-    test_obboxs['label'] = test_obboxs['label'].apply(select_highest_precedence)
     print("Updated labels to new mapping.")
 
     # update the annotations/obboxs table with the rel_position and duration extracted from comments
     train_obboxs[['duration', 'rel_position']] = train_obboxs['comments'].apply(extract_info).tolist()
-    test_obboxs[['duration', 'rel_position']] = test_obboxs['comments'].apply(extract_info).tolist()
     # create a mask for the duration to mark where the duration is relevent
     train_obboxs['duration_mask'] = train_obboxs['duration'].notna().astype(int)
-    test_obboxs['duration_mask'] = test_obboxs['duration'].notna().astype(int)
     # set items with no duration to -1
     train_obboxs['duration'] = train_obboxs['duration'].replace(np.nan,-1)
-    test_obboxs['duration'] = test_obboxs['duration'].replace(np.nan,-1)
     # create a mask for the rel_position to mark where the rel_position is relevent
     train_obboxs['rel_position_mask'] = train_obboxs['rel_position'].notna().astype(int)
-    test_obboxs['rel_position_mask'] = test_obboxs['rel_position'].notna().astype(int)
     # set items with no position to 50 (nothing is that high)
     train_obboxs['rel_position'] = train_obboxs['rel_position'].replace(np.nan,50)
-    test_obboxs['rel_position'] = test_obboxs['rel_position'].replace(np.nan,50)
     print("Updated durations and relative positions.")
 
     # padding used to be here
     # clean up the dataframes and cast columns to correct type
     train_obboxs.reset_index(inplace=True)
-    test_obboxs.reset_index(inplace=True)
     train_obboxs.drop(['cat_id','comments'], axis=1, inplace=True)
-    test_obboxs.drop(['cat_id','comments'], axis=1, inplace=True)
     train_obboxs.rename(columns={'index': 'ann_id'}, inplace=True)
-    test_obboxs.rename(columns={'index': 'ann_id'}, inplace=True)
     train_obboxs['ann_id'] = train_obboxs['ann_id'].astype(int)
-    test_obboxs['ann_id'] = test_obboxs['ann_id'].astype(int)
     train_obboxs['area'] = train_obboxs['area'].astype(int)
-    test_obboxs['area'] = test_obboxs['area'].astype(int)
     train_obboxs['img_id'] = train_obboxs['img_id'].astype(int)
-    test_obboxs['img_id'] = test_obboxs['img_id'].astype(int)
     print("Cleaned up tables.")
 
     # join the bounding box annotations and image information
     train_data = pd.merge(train_obboxs, train_images, on='img_id', how='inner')
-    test_data = pd.merge(test_obboxs, test_images, on='img_id', how='inner')
     train_data.drop('ann_ids', axis=1, inplace=True)
-    test_data.drop('ann_ids', axis=1, inplace=True)
     print("Merged bboxs and images together.")
 
     # concat the barlines annotations
-    train_barlines = pd.read_csv(json_directory+'deepscores_train_barlines.csv')
-    test_barlines = pd.read_csv(json_directory+'deepscores_test_barlines.csv')
+    # barlines_path = json_file.replace('.json','_barlines.pkl')
+    # train_barlines = pd.read_pickle(barlines_path)
+    barlines_path = json_file.replace('.json','_barlines.csv')
+    train_barlines = pd.read_csv(barlines_path)
     train_barlines['a_bbox'] = train_barlines['a_bbox'].apply(convert_str_to_list)
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
-    test_barlines['a_bbox'] = test_barlines['a_bbox'].apply(convert_str_to_list)
-    test_barlines['o_bbox'] = test_barlines['o_bbox'].apply(convert_str_to_list)
     train_data = pd.concat([train_data, train_barlines], ignore_index=True)
-    test_data = pd.concat([test_data, test_barlines], ignore_index=True)
     print("Processed barlines into main df.")
     # areas/yolo used to be here
 
     # AGGREGATE everything so that each row contains all the data for a single image
     train_data_agg = train_data.groupby('filename').agg({
-        'ann_id': lambda x: list(x),
-        'a_bbox': lambda x: list(x),
-        'o_bbox': lambda x: list(x),
-        'area': lambda x: list(x),
-        'duration': lambda x: list(x),
-        'duration_mask': lambda x: list(x),
-        'rel_position': lambda x: list(x), 
-        'rel_position_mask': lambda x: list(x),
-        'label': lambda x: list(x),
-        'img_id': 'first',  # assuming all entries per image have the same img_id
-        'width': 'first',   # assuming all entries per image have the same width
-        'height': 'first'  # assuming all entries per image have the same height
-    }).reset_index()
-    test_data_agg = test_data.groupby('filename').agg({
         'ann_id': lambda x: list(x),
         'a_bbox': lambda x: list(x),
         'o_bbox': lambda x: list(x),
@@ -299,10 +266,8 @@ def preprocess_data(json_directory, labels_path):
 
     # add a flag for resizing (will be set by future functions)
     train_data_agg['resized'] = 0
-    test_data_agg['resized'] = 0
     # make a new column for mask bbox (experimental output from warp image)
     train_data_agg['mask_bbox'] = train_data_agg['o_bbox']
-    test_data_agg['mask_bbox'] = test_data_agg['o_bbox']
     # get the width and height for the model- all bigger/smaller images will be resized to this 
     median_width = int(train_data_agg['width'].median())
     median_height = int(train_data_agg['height'].median())
@@ -349,51 +314,13 @@ def preprocess_data(json_directory, labels_path):
         train_data_agg.at[index, 'o_bbox'] = new_obbs
         train_data_agg.at[index, 'mask_bbox'] = masks
 
-    for index, row in tqdm(test_data_agg.iterrows()):
-        source_image = os.path.join(image_path, row['filename'])
-        a_bboxes = row['a_bbox']
-        o_bboxes = row['o_bbox']
-        resized_img = None
-        new_abbs, new_obbs = None, None
-        # resize if needed
-        if row['width'] != median_width or row['height'] != median_height:
-            resized_img, new_abbs, new_obbs = resize_image(source_image, 
-                                                           a_bboxes, 
-                                                           o_bboxes, 
-                                                           median_width, 
-                                                           median_height)
-            # update df
-            test_data_agg.at[index, 'a_bbox'] = new_abbs
-            test_data_agg.at[index, 'o_bbox'] = new_obbs
-            test_data_agg.at[index, 'width'] = median_width
-            test_data_agg.at[index, 'height'] = median_height
-            test_data_agg.at[index, 'resized'] = 1
-
-        if resized_img is not None:
-            output_img, new_abbs, new_obbs, masks = apply_random_distortion(resized_img, 
-                                                                            new_abbs, 
-                                                                            new_obbs)
-        else:
-            output_img, new_abbs, new_obbs, masks = apply_random_distortion(source_image, 
-                                                                            a_bboxes, 
-                                                                            o_bboxes)
-        # write image to disk
-        output_img_path = os.path.join(output_path, row['filename'])
-        output_img.save(output_img_path)  # Save the processed image
-        # update df
-        test_data_agg.at[index, 'a_bbox'] = new_abbs
-        test_data_agg.at[index, 'o_bbox'] = new_obbs
-        test_data_agg.at[index, 'mask_bbox'] = masks
     print("Image resize and distortion complete.")
 
     ## compute the features that depend on the final bounding boxes here
     # add 2px padding to any bounding box with a dimension < 2px
     train_data_agg['padded_a_bbox'] = train_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     train_data_agg['padded_o_bbox'] = train_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
-    test_data_agg['padded_a_bbox'] = test_data_agg['a_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
-    test_data_agg['padded_o_bbox'] = test_data_agg['o_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     train_data_agg['padded_mask'] = train_data_agg['mask_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
-    test_data_agg['padded_mask'] = test_data_agg['mask_bbox'].apply(lambda bboxes: [add_padding(bbox) for bbox in bboxes])
     print("Added padding where needed.")
 
     ## add a column with bounding boxes in (center x, center y, W, H, R)*normalized format
@@ -404,18 +331,42 @@ def preprocess_data(json_directory, labels_path):
 
     # add area columns 
     train_data_agg['padded_a_area'] = train_data_agg['padded_a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    test_data_agg['padded_a_area'] = test_data_agg['padded_a_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
     train_data_agg['padded_o_area'] = train_data_agg['padded_o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    test_data_agg['padded_o_area'] = test_data_agg['padded_o_bbox'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
     train_data_agg['padded_mask_area'] = train_data_agg['padded_mask'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
-    test_data_agg['padded_mask_area'] = test_data_agg['padded_mask'].apply(lambda bboxes: [calculate_bbox_area(bbox) for bbox in bboxes])
     print("Computed areas.")
 
     #  save processed data
-    train_data_agg.to_csv(json_directory+'train_df_for_model.csv')
-    test_data_agg.to_csv(json_directory+'test_df_for_model.csv')
-    train_data_agg.to_pickle(json_directory+'train_df_for_model.pkl')
-    test_data_agg.to_pickle(json_directory+'test_df_for_model.pkl')
-    print("Processing complete, saved csv and pickle files.")
+    out_path_csv = json_file.replace('.json','.csv')
+    out_path_pkl = json_file.replace('.json','.pkl')
+    train_data_agg.to_csv(out_path_csv)
+    train_data_agg.to_pickle(out_path_pkl)
+    unique_labels.to_csv(os.path.join(json_directory, 'unique_labels.csv'))
+    unique_labels.to_pickle(os.path.join(json_directory, 'unique_labels.pkl'))
+    print(f"Processed {json_file}, saved csv and pickle files.")
 
-    return train_data_agg, test_data_agg, unique_labels
+def preprocess_data(json_directory, labels_path, n_jobs=4):
+    json_files = [f for f in os.listdir(json_directory) if f.endswith('.json')]
+
+    # Number of processes to run in parallel
+    pool = multiprocessing.Pool(n_jobs)
+    
+    for json_file in json_files:
+        pool.apply_async(preprocess, args=(json_file, 
+                                           json_directory, 
+                                           labels_path))
+    
+    pool.close()
+    pool.join()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Process data and images into pickle/png for DataLoader')
+    parser.add_argument('json_directory', type=str, help='Root directory with annotation JSONs.')
+    parser.add_argument('labels_path', type=str, help='Path to csv file with labels')
+    parser.add_argument('n_jobs', type=int, help='How many processes to spawn.')
+
+    args = parser.parse_args()
+    
+    preprocess_data(args.json_directory, 
+                    args.labels_path,
+                    args.n_jobs)
+    print('Done processing.')
