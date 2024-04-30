@@ -340,6 +340,7 @@ def preprocess(json_file, json_directory, labels_path):
     out_path_csv = os.path.join(json_directory, json_file.replace('.json','.csv'))
     out_path_pkl = os.path.join(json_directory, json_file.replace('.json','.pkl'))
     train_data_agg.to_csv(out_path_csv)
+    print(out_path_pkl)
     train_data_agg.to_pickle(out_path_pkl)
     unique_labels.to_csv(os.path.join(json_directory, 'unique_labels.csv'))
     unique_labels.to_pickle(os.path.join(json_directory, 'unique_labels.pkl'))
