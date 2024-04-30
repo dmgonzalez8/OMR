@@ -351,10 +351,13 @@ def preprocess_data(json_directory, labels_path, n_jobs=4):
     # Number of processes to run in parallel
     pool = multiprocessing.Pool(n_jobs)
     
+    counter = 0
     for json_file in json_files:
         pool.apply_async(preprocess, args=(json_file, 
                                            json_directory, 
                                            labels_path))
+        counter += 1
+        print(f"Completed file {counter} of {len(json_files)}.")
     
     pool.close()
     pool.join()
