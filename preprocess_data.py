@@ -230,6 +230,7 @@ def preprocess(json_file, json_directory, labels_path):
     # barlines_path = os.path.join(json_directory, json_file.replace('.json','_barlines.pkl'))
     # train_barlines = pd.read_pickle(barlines_path)
     barlines_path = os.path.join(json_directory, json_file.replace('.json','_barlines.csv'))
+    print(barlines_path)
     train_barlines = pd.read_csv(barlines_path)
     train_barlines['a_bbox'] = train_barlines['a_bbox'].apply(convert_str_to_list)
     train_barlines['o_bbox'] = train_barlines['o_bbox'].apply(convert_str_to_list)
