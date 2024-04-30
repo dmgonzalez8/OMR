@@ -156,7 +156,7 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
                 loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict)
+                losses = sum(loss for loss in loss_dict.values())
                 # val_loss += losses.item()
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}, Total loss: {total_loss}")
         # print(f"Validation Loss: {val_loss / len(test_loader)}")
