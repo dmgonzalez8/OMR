@@ -29,6 +29,7 @@ import cv2
 import ast
 from datetime import datetime
 import argparse
+from torch.nn import DataParallel
 
 from preprocess_data import *
 from image_preprocessing import *
@@ -132,6 +133,7 @@ class MusicScoreDataset(Dataset):
 def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
     for epoch in range(num_epochs):
         model.train()
+        total_loss = 0
         print(f"Starting epoch {epoch}.")
         for images, targets in train_loader:
             images = list(image.to(device) for image in images)
@@ -140,18 +142,23 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
             # Forward and backward passes
             loss_dict = model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
+            total_loss += losses.item()
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
         # Validation step
         model.eval()
         with torch.no_grad():
+            val_loss = 0
             for images, targets in test_loader:
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-                model(images, targets)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
-        
+                loss_dict = model(images, targets)
+                losses = sum(loss for loss in loss_dict.values())
+                val_loss += losses.item()
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}, Total loss: {total_loss}")
+        print(f"Validation Loss: {val_loss / len(test_loader)}")
+
 def main(json_directory, optim, batch=2, num_epochs=10):
     image_directory = os.path.join(json_directory, 'processed_images/')
     train_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_train.pkl'))
@@ -160,7 +167,11 @@ def main(json_directory, optim, batch=2, num_epochs=10):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_classes = len(unique_labels) + 1
+
     model = get_model(num_classes).to(device)
+    if torch.cuda.device_count() > 1:
+        print(f"using {torch.cuda.device_count()} gpus")
+        model = DataParallel(model)
 
     train_loader = DataLoader(MusicScoreDataset(train_df, image_directory), num_workers=4,
                               batch_size=batch, shuffle=True, collate_fn=collate_fn)
