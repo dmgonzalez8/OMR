@@ -418,4 +418,4 @@ def preprocess_data(json_directory, labels_path):
     test_data_agg.to_pickle(json_directory+'test_df_for_model.pkl')
     print("Processing complete, saved csv and pickle files.")
 
-    return train_data_agg, test_data_agg
+    return train_data_agg, test_data_agg, unique_labels

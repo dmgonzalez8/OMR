@@ -30,17 +30,7 @@ import ast
 from datetime import datetime
 
 from preprocess_data import *
-from image_distortion import *
-
-"""start distortion transform wrappers"""
-def random_distortion(image):
-    # Your distortion logic here
-    return image  # Return a PIL Image
-
-class MyCustomTransform:
-    def __call__(self, img):
-        return random_distortion(img)
-"""end distortion transform wrappers"""
+from image_preprocessing import *
 
 """start helper functions for model"""
 def get_model(num_classes):
@@ -91,7 +81,6 @@ class MusicScoreDataset(Dataset):
         # Set default transforms if none are provided
         if transform is None:
             self.transform = self.transform = transforms.Compose([
-                MyCustomTransform(),  # Apply your custom distortion
                 transforms.ToTensor(),  # Convert images to tensors
                 transforms.Normalize(mean=[0], std=[1])  # set for grayscale
             ])
@@ -108,32 +97,36 @@ class MusicScoreDataset(Dataset):
             image = self.transform(image)
         a_boxes = torch.as_tensor(self.annotations['padded_a_bbox'].iloc[idx], dtype=torch.float32)
         o_boxes = torch.as_tensor(self.annotations['padded_o_bbox'].iloc[idx], dtype=torch.float32)
+        masks = torch.as_tensor(self.annotations['padded_mask'].iloc[idx], dtype=torch.float32)
         durations = torch.as_tensor(self.annotations['duration'].iloc[idx], dtype=torch.float32)
         rel_positions = torch.as_tensor(self.annotations['rel_position'].iloc[idx], dtype=torch.float32)
         duration_masks = torch.as_tensor(self.annotations['duration_mask'].iloc[idx], dtype=torch.int32)
         rel_position_masks = torch.as_tensor(self.annotations['rel_position_mask'].iloc[idx], dtype=torch.int32)
         labels = torch.as_tensor(self.annotations['label'].iloc[idx], dtype=torch.int64)
-        image_id = torch.tensor([self.annotations['img_id'].iloc[idx]], dtype=torch.int64)
-        a_area = torch.as_tensor([self.annotations['a_area'].iloc[idx]], dtype=torch.float32)
-        o_area = torch.as_tensor([self.annotations['o_area'].iloc[idx]], dtype=torch.float32)
-        iscrowd = torch.zeros((len(boxes),), dtype=torch.int64)  # Assuming no crowd
+        # image_id = torch.tensor([self.annotations['img_id'].iloc[idx]], dtype=torch.int64)
+        a_area = torch.as_tensor([self.annotations['padded_a_area'].iloc[idx]], dtype=torch.float32)
+        o_area = torch.as_tensor([self.annotations['padded_o_area'].iloc[idx]], dtype=torch.float32)
+        mask_area = torch.as_tensor([self.annotations['padded_mask_area'].iloc[idx]], dtype=torch.float32)
+        iscrowd = torch.zeros((len(a_boxes),), dtype=torch.int64)  # Assuming no crowd
 
         target = {}
         target["aboxes"] = a_boxes
         target["oboxes"] = o_boxes
+        target["masks"] = masks
         target["labels"] = labels
         target["durations"] = durations
         target["rel_positions"] = rel_positions
         target["duration_masks"] = duration_masks
         target["rel_position_masks"] = rel_position_masks
-        target["image_id"] = image_id
+        # target["image_id"] = image_id
         target["a_area"] = a_area
         target["o_area"] = o_area
+        target["mask_area"] = mask_area
         target["iscrowd"] = iscrowd
 
         return image, target
     
-def train(model, data_loader, optimizer, num_epochs=10):
+def train(device, model, data_loader, optimizer, num_epochs=10):
     model.train()
     for epoch in range(num_epochs):
         for images, targets in data_loader:
@@ -150,9 +143,7 @@ def train(model, data_loader, optimizer, num_epochs=10):
             optimizer.step()
         print(f"Epoch {epoch+1} of {num_epochs}, Loss: {losses.item()}")
         
-def train_faster_rcnn(train_df, test_df, image_directory):
-    # make the DataSet
-    # dataset = MusicScoreDataset(train_df, image_directory)
+def train_faster_rcnn(train_df, test_df, image_directory, unique_labels):
 
     # Setup
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -163,7 +154,7 @@ def train_faster_rcnn(train_df, test_df, image_directory):
     optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
     
     # Start training
-    train(model, data_loader, optimizer)
+    train(device, model, data_loader, optimizer)
 
     # export the model
     torch.save(model.state_dict(), f'./faster_rcnn_{str(datetime.now())}.pt')
@@ -177,6 +168,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # preprocess the data and get aggregated dataframes
-    train_df, test_df = preprocess_data(args.json_directory, args.labels_path)
+    train_df, test_df, unique_labels = preprocess_data(args.json_directory, args.labels_path)
+    
     # train the model
-    train_faster_rcnn(train_df, test_df, args.image_directory)
+    train_faster_rcnn(train_df, test_df, args.image_directory, len(unique_labels))
