@@ -178,16 +178,18 @@ def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
 
     model = get_model(num_classes).to(device)
 
-    if checkpoint is not None:
-        state_dict = torch.load(checkpoint)
-        new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-        model = get_model(num_classes)
-        model.load_state_dict(new_state_dict)
-        print("Loaded checkpoint model from:", checkpoint)
-
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} gpus")
         model = DataParallel(model)
+
+    if checkpoint is not None:
+        state_dict = torch.load(checkpoint, map_location=device)
+        if isinstance(model, DataParallel):
+            new_state_dict = {'module.' + k if not k.startswith('module.') else k: v for k, v in state_dict.items()}
+        else:
+            new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        model.load_state_dict(new_state_dict)
+        print("Loaded checkpoint model from:", checkpoint)
 
     train_loader = DataLoader(MusicScoreDataset(train_df, image_directory), num_workers=4,
                               batch_size=batch, shuffle=True, collate_fn=collate_fn)
