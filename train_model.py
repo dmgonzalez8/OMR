@@ -179,7 +179,10 @@ def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
     model = get_model(num_classes).to(device)
 
     if checkpoint is not None:
-        model.load_state_dict(torch.load(checkpoint))
+        state_dict = torch.load('./faster_rcnn_adam8.pt', map_location=torch.device('cpu'))
+        new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+        model = get_model(num_classes)
+        model.load_state_dict(new_state_dict)
         print("Loaded checkpoint model from:", checkpoint)
 
     if torch.cuda.device_count() > 1:
