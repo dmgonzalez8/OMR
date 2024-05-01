@@ -149,7 +149,7 @@ def train(device, model, model_file, train_loader, test_loader, optimizer, num_e
             losses.backward()
             optimizer.step()
 
-        if (epoch + 1) % 1 == 0:
+        if (epoch + 1) % 100 == 0:
             filename = f'{model_file}_{epoch + 1}.pt'
             torch.save(model.state_dict(), filename)
             print(f"Saved model checkpoint at epoch {epoch + 1} to: {filename}")
