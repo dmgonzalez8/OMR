@@ -132,11 +132,11 @@ class MusicScoreDataset(Dataset):
 
         return image, target
     
-def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
+def train(device, model, model_file, train_loader, test_loader, optimizer, num_epochs=100):
     for epoch in range(num_epochs):
         model.train()
         # total_loss = 0
-        print(f"Starting epoch {epoch}.")
+        print(f"Starting epoch {epoch+1}.")
         for images, targets in train_loader:
             images = list(image.to(device) for image in images)
             # Ensure targets are dictionaries and move them to the appropriate device
@@ -148,6 +148,12 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
+
+        if (epoch + 1) % 1 == 0:
+            filename = f'{model_file}_{epoch + 1}.pt'
+            torch.save(model.state_dict(), filename)
+            print(f"Saved model checkpoint at epoch {epoch + 1} to: {filename}")
+
         # # Validation step
         # model.eval()
         # with torch.no_grad():
@@ -161,7 +167,7 @@ def train(device, model, train_loader, test_loader, optimizer, num_epochs=100):
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
         # print(f"Validation Loss: {val_loss / len(test_loader)}")
 
-def main(json_directory, optim, batch=2, num_epochs=10):
+def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
     image_directory = os.path.join(json_directory, 'processed_images/')
     train_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_train.pkl'))
     test_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_test.pkl'))
@@ -171,8 +177,13 @@ def main(json_directory, optim, batch=2, num_epochs=10):
     num_classes = len(unique_labels) + 1
 
     model = get_model(num_classes).to(device)
+
+    if checkpoint is not None:
+        model.load_state_dict(torch.load(checkpoint))
+        print("Loaded checkpoint model from:", checkpoint)
+
     if torch.cuda.device_count() > 1:
-        print(f"using {torch.cuda.device_count()} gpus")
+        print(f"Using {torch.cuda.device_count()} gpus")
         model = DataParallel(model)
 
     train_loader = DataLoader(MusicScoreDataset(train_df, image_directory), num_workers=4,
@@ -182,16 +193,21 @@ def main(json_directory, optim, batch=2, num_epochs=10):
 
     if optim == "SGD":
         optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_SGD"
     elif optim == 'AdamW':
         optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.01)
+        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_adamW"
     elif optim == "RMSprop":    
         optimizer = RMSprop(model.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0.0001, momentum=0.9)
+        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_RMSprop"
     elif optim == "Adadelta":    
         optimizer = Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0.0001)
+        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_adadelta"
     else:
         optimizer = Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0001)
+        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_asam"
     
-    train(device, model, train_loader, test_loader, optimizer, num_epochs)
+    train(device, model, model_filename, train_loader, test_loader, optimizer, num_epochs)
 
     filename = f'./faster_rcnn_{datetime.now().strftime("%Y%m%d%H%M%S")}.pt'
     torch.save(model.state_dict(), filename)
@@ -203,6 +219,7 @@ if __name__ == "__main__":
     parser.add_argument('optimizer', type=str, help='SGD, Adam, Adadelta, AdamW, RMSprop')
     parser.add_argument('batch_size', type=int, help='Images per batch.')
     parser.add_argument('num_epochs', type=int, help='How long to train.')
+    parser.add_argument('--checkpoint', type=str, default=None, help='Path to the model checkpoint to continue training.')
 
     args = parser.parse_args()
-    main(args.json_directory, args.optimizer, args.batch_size, args.num_epochs)
+    main(args.json_directory, args.optimizer, args.batch_size, args.num_epochs, args.checkpoint)
