@@ -193,19 +193,19 @@ def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
 
     if optim == "SGD":
         optimizer = SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
-        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_SGD"
+        model_filename = f'{datetime.now().strftime("%Y%m%d%H%M")}_SGD'
     elif optim == 'AdamW':
         optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.01)
-        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_adamW"
+        model_filename = f'{datetime.now().strftime("%Y%m%d%H%M")}_adamW'
     elif optim == "RMSprop":    
         optimizer = RMSprop(model.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0.0001, momentum=0.9)
-        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_RMSprop"
+        model_filename = f'{datetime.now().strftime("%Y%m%d%H%M")}_RMSprop'
     elif optim == "Adadelta":    
         optimizer = Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0.0001)
-        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_adadelta"
+        model_filename = f'{datetime.now().strftime("%Y%m%d%H%M")}_adadelta'
     else:
         optimizer = Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0001)
-        model_filename = f"{datetime.now().strftime("%Y%m%d%H%M")}_asam"
+        model_filename = f'{datetime.now().strftime("%Y%m%d%H%M")}_adam'
     
     train(device, model, model_filename, train_loader, test_loader, optimizer, num_epochs)
 
