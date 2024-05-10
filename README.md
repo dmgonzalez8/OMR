@@ -1,4 +1,4 @@
-![Optical Music Recognition](images/banner.png)
+![Optical Music Recognition](images/banner2.png)
 
 <p align="center" style="font-size: 24px;">
   <strong>Optical Music Recognition</strong>
