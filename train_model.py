@@ -17,11 +17,17 @@ import torchvision
 from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.backbone_utils import BackboneWithFPN
 from torchvision import transforms
 from torch.utils.data._utils.collate import default_collate
 import torchvision
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from torchvision.transforms import functional as F
+from torchvision.ops.misc import Conv2dNormActivation
+from torchvision.ops import MultiScaleRoIAlign
+from torchvision.ops.feature_pyramid_network import FeaturePyramidNetwork as FPN
+from torchvision.models.densenet import densenet201
+from torchvision.ops import misc as misc_nn_ops
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import random
 from math import radians, cos, sin
@@ -32,11 +38,51 @@ import argparse
 from torch.nn import DataParallel
 import warnings
 warnings.filterwarnings("ignore")
-
 from preprocess_data import *
 from image_preprocessing import *
 
 """start helper functions for model"""
+def get_model_densenet(num_classes):
+    # Load a DenseNet201 backbone pre-trained on ImageNet
+    densenet_backbone = torchvision.models.densenet201(pretrained=True)
+    # Remove the classifier part (fully-connected layer) at the end of DenseNet
+    backbone = densenet_backbone.features
+    
+    # DenseNet201 outputs feature maps with 1920 channels at the final convolution layer
+    backbone.out_channels = 1920
+    
+    # Define the return layers for FPN (choose according to your DenseNet architecture)
+ # Define the return layers for FPN (use the actual layer names)
+    return_layers = {'norm5': '0'}
+
+    # Create the FPN on top of the DenseNet backbone
+    backbone_with_fpn = BackboneWithFPN(backbone, return_layers=return_layers,
+                                        in_channels_list=[1920],
+                                        out_channels=256)
+
+    # Define the anchor generator
+    anchor_generator = AnchorGenerator(sizes=((32, 64, 128, 256, 512),),
+                                       aspect_ratios=((0.5, 1.0, 2.0),))
+    
+    # Define the RoI pooler
+    roi_pooler = MultiScaleRoIAlign(featmap_names=[0],
+                                    output_size=7,
+                                    sampling_ratio=2)
+
+    anchor_sizes = tuple([(8, 16, 32, 64, 128, 256, 512) for _ in range(5)])  # Example sizes for 5 FPN levels
+    aspect_ratios = tuple([(0.5, 1.0, 2.0) for _ in range(5)])  # Common aspect ratios
+
+    # Create the anchor generator
+    anchor_generator = AnchorGenerator(sizes=anchor_sizes, aspect_ratios=aspect_ratios)
+
+    # Create the Faster R-CNN model
+    model = FasterRCNN(backbone_with_fpn,
+                       num_classes=num_classes,
+                       rpn_anchor_generator=anchor_generator,
+                       box_roi_pool=roi_pooler)
+
+    return model
+
 def get_model(num_classes):
     # Load a model pre-trained on COCO
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -134,6 +180,7 @@ class MusicScoreDataset(Dataset):
     
 def train(device, model, model_file, train_loader, test_loader, optimizer, num_epochs=100):
     for epoch in range(num_epochs):
+        start_time = datetime.now()
         model.train()
         # total_loss = 0
         print(f"Starting epoch {epoch+1}.")
@@ -164,11 +211,19 @@ def train(device, model, model_file, train_loader, test_loader, optimizer, num_e
         #         loss_dict = model(images, targets)
         #         losses = sum(loss for loss in loss_dict.values())
         #         # val_loss += losses.item()
+        print(f"Elapsed time: {datetime.now() - start_time}")
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
+        if losses.item() < 0.18:
+            filename = f'{model_file}_{epoch + 1}.pt'
+            torch.save(model.state_dict(), filename)
+            print(f"Saved model checkpoint at epoch {epoch + 1} to: {filename}")
         # print(f"Validation Loss: {val_loss / len(test_loader)}")
 
-def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
-    image_directory = os.path.join(json_directory, 'processed_images/')
+def main(json_directory, optim, backbone='ResNet50', batch=2, num_epochs=10, checkpoint=None, noise=True):
+    if noise:
+        image_directory = os.path.join(json_directory, 'processed_images/')
+    else:
+        image_directory = os.path.join(json_directory, 'images/')
     train_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_train.pkl'))
     test_df = pd.read_pickle(os.path.join(json_directory, 'deepscores_test.pkl'))
     unique_labels = pd.read_pickle(os.path.join(json_directory, 'unique_labels.pkl'))
@@ -176,7 +231,10 @@ def main(json_directory, optim, batch=2, num_epochs=10, checkpoint=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_classes = len(unique_labels) + 1
 
-    model = get_model(num_classes).to(device)
+    if backbone == "DenseNet":
+        model = get_model_densenet(num_classes).to(device)
+    else:
+        model = get_model(num_classes).to(device)
 
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} gpus")
@@ -224,7 +282,9 @@ if __name__ == "__main__":
     parser.add_argument('optimizer', type=str, help='SGD, Adam, Adadelta, AdamW, RMSprop')
     parser.add_argument('batch_size', type=int, help='Images per batch.')
     parser.add_argument('num_epochs', type=int, help='How long to train.')
+    parser.add_argument('--backbone', type=str, default=None,help='ResNet, DenseNet, None')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the model checkpoint to continue training.')
 
     args = parser.parse_args()
-    main(args.json_directory, args.optimizer, args.batch_size, args.num_epochs, args.checkpoint)
+    main(args.json_directory, args.optimizer, args.backbone, 
+         args.batch_size, args.num_epochs, args.checkpoint)
