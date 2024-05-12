@@ -15,7 +15,8 @@
   - [Advanced Image Manipulations](#advanced-image-manipulations)
   - [Annotation Adjustment](#annotation-adjustment)
 - [Barline Extraction and Measure Detection](#barline-extraction-and-measure-detection)
-- [Results](#results)
+- [Results: YOLO Models](#yolo-models-results)
+- [Results: Faster R-CNN Models](#faster-r-cnn-models-results)
 - [Future Work](#future-work)
 - [Contributors](#contributors)
 - [Acknowledgements](#acknowledgements)
@@ -29,26 +30,23 @@ This project focuses on training models to detect and classify musical symbols u
 ## Models and Techniques
 
 ### Model Training
-We have employed three You Only Look Once (YOLO) models, each tailored for detecting different types of musical symbols within the scores:
+We have employed You Only Look Once (YOLO) model for two tasks:
+
 - **YOLO for All Symbols**
-- **YOLO for Barlines**
 - **YOLO for Measures**
 
 #### YOLO Training Details
 We trained our models using the following configurations:
 - **Model**: `yolov8n.pt`
 - **Data Configuration**: `deep_scores.yaml`
-- **Epochs**: 1000
-- **Batch Size**: 10
-- **Image Size**: [1960, 2772]
+- **Batch Size**: 5
+- **Image Size**: [704, 992]
 - **Optimizer**: Automatically selected based on training conditions
-- **Backbone**: Custom YOLO backbone fine-tuned for musical score recognition.
 - **Additional Settings**:
   - **Pretrained**: Yes, leveraging <a href="https://github.com/ultralytics/ultralytics">Ultralytics'</a>  pretrained models to accelerate convergence.
-  - **Patience**: 100, to allow adequate time for the model to improve before stopping.
-  - **Deterministic**: Enabled, to ensure reproducibility.
+  - **Patience**: 0, to avoid early stopping.
   - **Rectangle Training**: Enabled, to optimize loading of rectangular images.
-  - **Automatic Mixed Precision (AMP)**: Enabled, to accelerate training.
+  - **Automatic Mixed Precision (AMP)**: Enabled by default to accelerate training.
 
 **Folder Structure and Configuration**
 - YOLO training requires a specific folder format and a `.yaml` file detailing the labels and their corresponding numbers, as well as paths for folders containing images, separated into train and test sets.
@@ -96,23 +94,120 @@ We implemented a recursive algorithm to detect measures from barlines. However, 
 - Currently, measures are detected only for the default 5 staff lines.
 - We need to improve the algorithm to capture notes that are positioned above or below these lines.
 
-## Results
+## YOLO Models Results
+
+The results section for YOLO includes two parts: one for symbol detection & classification, and the other for measure detection. We have trained four models, three for symbol detection and classification, and one for measure detection. For symbol detection, we trained YOLOv8n (500 + 500 epochs), YOLOv8m (500 epochs), and YOLOv8x (500). We achieved highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of ... across all classes using YOLOv8x. After observing improvements in the training efficiency as the models' number of parameters increased, we decided to use YOLOv8x for measure detection. For measure detection we trained one model using YOLOv8x(500 epochs). 
+
+### Symbol Detection & Classification Using YOLO:
+
+First let's see the histogram chart showing the class imbalance in the data:
+
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8n/histogram.jpg" width="400" alt="Histogram of Symbol Class Frequency"/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 1: Histogram of Symbol Class Frequency</em></p>
+
+The confusion matrix below represents the performance of the YOLOv8n model after 1000 epochs, highlighting the prediction accuracy across various symbol classes. Each cell shows the proportion of predictions made for a predicted class versus the true class, with a perfect prediction represented by a 1.0 in the diagonal cells. Please refer to the provided class index [file](deep_scores.yaml) to determine which symbol each class index corresponds to.
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8n/confusion_matrix_normalized_1000epochs.png" width="500" alt="Normalized Confusion Matrix for Symbol Detection using YOLOv8n"/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection using YOLOv8x (This is from YOLOv8n, I will change this by tomorrow evening.)</em></p>
+
+After training the YOLOv8n model for 500 epochs for approximately 9 hours, here are the losses:
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8n/losses_500epochs.png" width="400" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 3: Symbol Classification Using YOLOv8n After 500 Epochs</em></p>
+  
+Both training and validation box loss, as well as classification loss, decrease sharply initially and then level off, showing that the model is learning to predict the bounding boxes and classify the music symbols effectively. The distribution-focused loss follows a similar trend, improving the model's distribution predictions. Additionally, precision and recall metrics consistently increased, demonstrating that the model's accuracy and completeness in symbol detection are improving. Although the rate of decrease in the losses diminished towards the end of the 500 epochs, we wanted to see whether the decrease would continue or if it would stabilize around similar levels. Therefore, we decided to train for an additional 500 epochs and observed the following Precision-Confidence Curve and Precision-Recall Curve.
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
+    <img src="images/yolo_for_symbols_v8n/P_curve_1000epochs.png" width="400" alt="Precision-Confidence Curve of YOLOv8n Model for Symbols Detection After 1000 Epochs"/>
+  </kbd>
+  
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8n/PR_curve_1000epochs.png" width="400" alt="Precision-Recall Curves of YOLOv8n Model for Symbols Detection After 1000 Epochs"/> 
+  </kbd>
+</p>
+<p align="center">
+  <em>Figure 4 and 5: Precision and Precision-Recall Curves of YOLOv8n Model for Symbols Detection After 1000 Epochs</em>
+</p>
+
+The Precision-Confidence Curve now achieves a precision of 0.95 at a confidence level of 0.990 for all classes, while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of 0.560 across all classes. These current values indicate a solid improvement from the previous results observed at the end of the initial 500 epochs, demonstrating the model's enhanced ability to accurately identify and classify musical symbols with higher confidence and effectively balance precision and recall at a broader range of thresholds. Please see the [documentation](/images/yolo_for_symbols_v8n/) for the plots after 500 epochs. After realizing that it becomes harder to improve the models with each epoch, we decided to use the YOLOv8m model, which has approximately 25.9 million parameters—about 8 times more than the YOLOv8n model with 3.2 million parameters. Using the same settings, we trained it for 500 epochs and observed the following results:
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
+    <img src="images/yolo_for_symbols_v8m/P_curve.png" width="400" alt="Precision-Confidence Curve of YOLOv8m Model for Symbols Detection After 500 Epochs"/>
+  </kbd>
+  
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8m/PR_curve.png" width="400" alt="Precision-Recall Curves of YOLOv8m Model for Symbols Detection After 500 Epochs"/> 
+  </kbd>
+</p>
+<p align="center">
+  <em>Figure 6 and 7: Precision and Precision-Recall Curves of YOLOv8m Model for Symbols Detection After 500 Epochs</em>
+</p>
+
+This took approximately 9 hours, similar to the YOLOv8n model, which was expected to have a longer duration based on the documentation from the Ultralytics page. We realized afterward that the YOLOv8n model did not fully utilize the GPU. Please see this [plot](/images/yolo_for_symbols_v8m/losses.png) for their losses. Training for only 500 epochs and observing better results than from 1000 epochs of training with the YOLOv8n model hinted that as the number of parameters increases, training becomes more efficient in this case. Consequently, we decided to try the YOLOv8x model, and here are the results we observed:
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
+    <img src="images/yolo_for_symbols_v8x/P_curve.png" width="400" alt="Precision-Confidence Curve of YOLOv8x Model for Symbols Detection After 500 Epochs"/>
+  </kbd>
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8x/PR_curve.png" width="400" alt="Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs"/> 
+  </kbd>
+</p>
+<p align="center">
+  <em>Figure 8 and 9: Precision and Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs (by tomorrow evening)</em>
+</p>
+
+Above plots shows that training with YoloV8x model seems to yield the most efficent losses per each epoch, although its training time is considereably higher than the YOLOv8n and YOLOv8m models which was approximately took ... hours. And here is a sample predicted from test set using this model:
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_symbols_v8n/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png""/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 10: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x (Sample is predicted using YOLOv8n, YOLOv8x is still on training, I will change this by tomorrow evening.)</em></p>
+
+### Measure Detection Using YOLO
+Lastly, we trained a YOLOv8x model for 500 epochs to detect only the measures after seeing it is outperforming the others, and here is the results
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_measures_v8x/results.png" width="600" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 11: Measure Detection Using YOLOv8x After 500 Epochs (by tomorrow evening) </em></p>
+
+And here is a sample predicted from test set using this model:
+
+<p align="center">
+  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
+    <img src="images/yolo_for_measures_v8x/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x"/>
+  </kbd>
+</p>
+<p align="center"><em>Figure 12: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x (by tomorrow evening) </em></p>
+
+## Faster R-CNN Models Results
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
     <img src="images/image_1.png" width="400" alt="Symbol Classification Using R-CNN"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 1: Symbol Classification Using R-CNN</em></p>
-
-<p align="center">
-  <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/image_0.jpg" width="400" alt="Measure Classification Using YOLO"/>
-  </kbd>
-</p>
-<p align="center"><em>Figure 2: YOLO for Measures Trained on CPU, imgsz = 640, 1st Batch, 1st Epoch</em></p>
-
-(Provide a summary of the results, including any metrics, visualizations, or key outcomes that highlight the project's success or areas for improvement.)
+<p align="center"><em>Figure 13: Symbol Classification Using R-CNN</em></p>
 
 ## Future Work
 To further enhance our optical music recognition system, we plan to focus on several key areas:
