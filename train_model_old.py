@@ -204,6 +204,10 @@ def train(device, model, model_file, train_loader, test_loader, optimizer, num_e
         #         # val_loss += losses.item()
         print(f"Elapsed time: {datetime.now() - start_time}")
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {losses.item()}")
+        if losses.item() < 0.18:
+            filename = f'{model_file}_{epoch + 1}.pt'
+            torch.save(model.state_dict(), filename)
+            print(f"Saved model checkpoint at epoch {epoch + 1} to: {filename}")
         # print(f"Validation Loss: {val_loss / len(test_loader)}")
 
 def main(json_directory, optim, backbone='ResNet50', batch=2, num_epochs=10, checkpoint=None, noise=True):
