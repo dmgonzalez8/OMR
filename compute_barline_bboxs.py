@@ -333,10 +333,16 @@ def process_bboxes_initial(data, tolerance=2):
     return data
 
 
-def process_bboxes_final(data, tolerance=2):
+def process_bboxes_final_new(row, tolerance=2):
+
+    # Extract data from the row
+    data = row['new_measure_bbox']
+    width = row['width']
+    height = row['height']
+
     # Group by min_y and max_y and find the maximum min_x for each group, within a tolerance
     grouped_data = {}
-    new_bboxes = {}  # Use this to store new entries to avoid modifying `data` during iteration
+    new_bboxes = {}
 
     for key, box in data.items():
         if key.startswith('measure'):
@@ -361,8 +367,8 @@ def process_bboxes_final(data, tolerance=2):
     count = 0
     for y_key, real_max_x in grouped_data.items():
         new_key = f"final_measure_{count}"
-        new_bboxes[new_key] = [1960, y_key[0], real_max_x,
-                               y_key[0], real_max_x, y_key[1], 1960, y_key[1]]
+        new_bboxes[new_key] = [width, y_key[0], real_max_x,
+                               y_key[0], real_max_x, y_key[1], width, y_key[1]]
         count += 1
 
     # Update the original data dictionary with new entries
@@ -389,7 +395,7 @@ def parse_list_string(s):
     return [int(item) for item in s.split(',') if item.strip()]
 
 
-def analyze_image_for_measures(df):
+def analyze_image_for_measures(df, json_path):
 
     # df['a_bbox'] = df['a_bbox'].apply(convert_str_to_list)
     # df['o_bbox'] = df['o_bbox'].apply(convert_str_to_list)
@@ -415,7 +421,23 @@ def analyze_image_for_measures(df):
     grouped_bbox_df = pd.DataFrame(grouped_bbox_data).reset_index()
 
     # drop the line number, measure number in the expanded df for concatenation
-    df.drop(['line_number', 'measure_number'], axis=1, inplace=True)
+    df.drop(['line_number', 'measure_number'], axis=1, inplace=True)  # -
+
+    # Load JSON data into a dictionary
+    with open(f'''{json_path}''') as file:
+        data1 = json.load(file)
+
+    train_images = pd.DataFrame(data1['images'])
+
+    # Update the width and height of the images
+    filename_to_dimensions = dict(zip(train_images['filename'], zip(
+        train_images['width'], train_images['height'])))
+
+    # Use map to update 'width' and 'height' columns in measures_df based on filename
+    grouped_bbox_df['width'] = grouped_bbox_df['filename'].map(
+        lambda x: filename_to_dimensions.get(x, (np.nan, np.nan))[0])
+    grouped_bbox_df['height'] = grouped_bbox_df['filename'].map(
+        lambda x: filename_to_dimensions.get(x, (np.nan, np.nan))[1])
 
     # Apply the function, 0 is the column which includes the coordinates of the measures as a dictionary
     grouped_bbox_df['measure_bbox'] = grouped_bbox_df[0].apply(
@@ -426,8 +448,8 @@ def analyze_image_for_measures(df):
         process_bboxes_initial)
 
     # Apply the function to add the final measure at each line
-    grouped_bbox_df['new_measure_bbox_updated'] = grouped_bbox_df['new_measure_bbox'].apply(
-        process_bboxes_final)
+    grouped_bbox_df['new_measure_bbox_updated'] = grouped_bbox_df.apply(
+        process_bboxes_final_new, axis=1)
 
     # Drop the previously created columns
     grouped_bbox_df.drop(
@@ -532,7 +554,8 @@ def process_file(json_file, json_directory, segmentation_directory, merge_radius
                                       ignore_index=True)
 
     # Eren - Get measures in a df
-    barlines_data = analyze_image_for_measures(barlines_data)
+    barlines_data = analyze_image_for_measures(
+        barlines_data, json_path=json_file)
 
     # Save all collected barline data to CSV after processing all files
     if not barlines_data.empty:
