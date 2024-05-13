@@ -37,7 +37,7 @@ We have employed You Only Look Once (YOLO) model for two tasks:
 
 #### YOLO Training Details
 We trained our models using the following configurations:
-- **Model**: `yolov8n.pt`
+- **Models**: `YOLOv8x.pt`, `YOLOv8m.pt`, `YOLOv8x.pt`
 - **Data Configuration**: `deep_scores.yaml`
 - **Batch Size**: 5
 - **Image Size**: [704, 992]
@@ -46,7 +46,6 @@ We trained our models using the following configurations:
   - **Pretrained**: Yes, leveraging <a href="https://github.com/ultralytics/ultralytics">Ultralytics'</a>  pretrained models to accelerate convergence.
   - **Patience**: 0, to avoid early stopping.
   - **Rectangle Training**: Enabled, to optimize loading of rectangular images.
-  - **Automatic Mixed Precision (AMP)**: Enabled by default to accelerate training.
 
 **Folder Structure and Configuration**
 - YOLO training requires a specific folder format and a `.yaml` file detailing the labels and their corresponding numbers, as well as paths for folders containing images, separated into train and test sets.
