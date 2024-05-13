@@ -68,10 +68,9 @@ For our Faster R-CNN model, we trained with various optimizers under the followi
 
 ### Image Scaling and Bounding Boxes
 To standardize our dataset, we:
-- Scaled all images to a median size of **1960x2772**.
+- Scaled all images to a median size of **1960x2772** and added padding as necessary to maintain aspect ratio integrity.
 - Computed absolute coordinates for bounding boxes in both YOLO format and oriented 4-corner-coordinate format.
 - Adjusted bounding boxes for new image sizes, considering different scaling factors for x and y axes due to int rounding, despite their negligible differences.
-- Added padding as necessary to maintain aspect ratio integrity.
 
 ### Advanced Image Manipulations
 In the [`image_preprocessing.py`](image_preprocessing.py) file, we have implemented functions to apply distortions, warping, and various other transformations. These processes create diverse training images, enhancing the robustness of our models against real-world variations in musical scores.
@@ -84,9 +83,8 @@ For symbols without explicit relative positions, we:
 ## Barline Extraction and Measure Detection
 
 ### Barline Processing
-We extracted barlines from segmented images using the color properties defined in [`compute_barline_bboxs.py`](compute_barline_bboxs.py). This script:
-- Automatically scans all JSON files in the directory.
-- Processes them using multiprocessing to enhance efficiency.
+We extracted barlines from segmented images using the color properties defined in [`compute_barline_bboxs.py`](compute_barline_bboxs.py). This script automatically scans all JSON files in the directory and processes them using multiprocessing.
+
 
 ### Measure Detection
 We implemented a recursive algorithm to detect measures from barlines. However, there are some limitations:
