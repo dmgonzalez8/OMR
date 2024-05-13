@@ -212,9 +212,13 @@ To further enhance our optical music recognition system, we plan to focus on sev
 
 ## Contributors
 [Maricela Abarca](https://github.com/myabarca)
+
 [Eren Bardak](https://github.com/eren-bardak)
+
 [Brandon Hom](https://github.com/bwhom2000)
+
 [Eric Shen](https://github.com/sheneric211)
+
 [Prof. Mustafa Hajij](https://www.mustafahajij.com/)
 
 ## Acknowledgements
