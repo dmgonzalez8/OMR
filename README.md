@@ -87,9 +87,8 @@ We extracted barlines from segmented images using the color properties defined i
 
 
 ### Measure Detection
-We implemented a recursive algorithm to detect measures from barlines. However, there are some limitations:
-- Currently, measures are detected only for the default 5 staff lines.
-- We need to improve the algorithm to capture notes that are positioned above or below these lines.
+We implemented a recursive algorithm to detect measures from barlines. Currently, measures are detected only for the default 5 staff lines.We need to improve the algorithm to capture notes that are positioned above or below these lines.
+
 
 ## YOLO Models Results
 
