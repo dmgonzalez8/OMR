@@ -211,14 +211,10 @@ To further enhance our optical music recognition system, we plan to focus on sev
 - **End-to-End OMR System**: The next major goal is to develop an end-to-end optical music recognition system that converts music scores into XML files. This includes processing not only traditionally scanned images but also photographs that are not perfectly aligned or warped. Enhancements in image segmentation will be crucial to achieve this goal.
 
 ## Contributors
-[Maricela Abarca](https://github.com/myabarca)
-
-[Eren Bardak](https://github.com/eren-bardak)
-
-[Brandon Hom](https://github.com/bwhom2000)
-
-[Eric Shen](https://github.com/sheneric211)
-
+[Maricela Abarca](https://github.com/myabarca)  
+[Eren Bardak](https://github.com/eren-bardak)  
+[Brandon Hom](https://github.com/bwhom2000)  
+[Eric Shen](https://github.com/sheneric211)  
 [Prof. Mustafa Hajij](https://www.mustafahajij.com/)
 
 ## Acknowledgements
