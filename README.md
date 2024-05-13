@@ -8,7 +8,7 @@
 - [Overview](#overview)
 - [Dataset](#dataset)
 - [Models and Techniques](#models-and-techniques)
-  - [Model Training](#model-training)
+  - [YOLO Training](#model-training)
   - [Faster R-CNN Training](#faster-r-cnn-training)
 - [Image Processing](#image-processing)
   - [Image Scaling and Bounding Boxes](#image-scaling-and-bounding-boxes)
@@ -29,15 +29,15 @@ This project focuses on training models to detect and classify musical symbols u
 
 ## Models and Techniques
 
-### Model Training
+### YOLO Training
 We have employed You Only Look Once (YOLO) model for two tasks:
 
-- **YOLO for All Symbols**
+- **YOLO for Symbols**
 - **YOLO for Measures**
 
 #### YOLO Training Details
 We trained our models using the following configurations:
-- **Models**: `YOLOv8x.pt`, `YOLOv8m.pt`, `YOLOv8x.pt`
+- **Models**: `YOLOv8n.pt`, `YOLOv8m.pt`, `YOLOv8x.pt`
 - **Data Configuration**: `deep_scores.yaml`
 - **Batch Size**: 5
 - **Image Size**: [704, 992]
@@ -139,7 +139,7 @@ Both training and validation box loss, as well as classification loss, decrease 
   <em>Figure 4 and 5: Precision and Precision-Recall Curves of YOLOv8n Model for Symbols Detection After 1000 Epochs</em>
 </p>
 
-The Precision-Confidence Curve now achieves a precision of 0.95 at a confidence level of 0.990 for all classes, while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of 0.560 across all classes.These values indicate an improvement from the previous results observed at the end of the initial 500 epochs, demonstrating that the model remains open to training even though the decrease in loss is quite slow compared to the first epochs. Please see the [documentation](/images/yolo_for_symbols_v8n/) for the plots after 500 epochs. After realizing that it becomes harder to improve the models with each epoch, we decided to use the YOLOv8m model, which has approximately 25.9 million parameters—about 8 times more than the YOLOv8n model with 3.2 million parameters. Using the same settings, we trained it for 500 epochs and observed the following results:
+The Precision-Confidence Curve now achieves a precision of 0.95 at a confidence level of 0.990 for all classes, while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of 0.560 across all classes. These values indicate an improvement from the previous results observed at the end of the initial 500 epochs, demonstrating that the model remains open to training even though the decrease in loss is quite slow compared to the first epochs. Please see the [documentation](/images/yolo_for_symbols_v8n/) to see the other plots using YOLOv8n. After realizing that it becomes harder to improve the models with each epoch, we decided to use the YOLOv8m model, which has approximately 25.9 million parameters—about 8 times more than the YOLOv8n model with 3.2 million parameters. Using the same settings, we trained it for 500 epochs and observed the following results:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
