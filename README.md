@@ -253,7 +253,7 @@ And here is a sample predicted from test set using this model:
 <p align="center"><em>Figure 15: Symbol Classification Using R-CNN</em></p>
 
 ## Future Work
-To further enhance our optical music recognition system, we plan to focus on several key areas:
+
 - Train more epochs using YOLOv8x
 - Training Set Refinement - consider larger dataset, or implementation of oriented bounding boxes
 - Create an ensemble of YOLO models, to classify symbols by relative symbol size
