@@ -254,8 +254,8 @@ And here is a sample predicted from test set using this model:
 
 ## Future Work
 
-- Train more epochs using YOLOv8x
-- Training Set Refinement - consider larger dataset, or implementation of oriented bounding boxes
+- Training Set Refinement: Consider a larger dataset, implement oriented bounding boxes, and ensure each class is present in both train and test sets.
+- Train more epochs using YOLOv8x and YOLOv8m
 - Create an ensemble of YOLO models, to classify symbols by relative symbol size
 - Enhance, measure segmentation to capture notes positioned above or below the staff.
 - End-to-End OMR System: The next major goal is to translate the classified symbols into machine readable Kern or XML music format using LSTM or Transformer architectures.
