@@ -73,7 +73,7 @@ To standardize our dataset, we:
 - Adjusted bounding boxes for new image sizes, considering different scaling factors for x and y axes due to int rounding, despite their negligible differences.
 
 ### Advanced Image Manipulations
-In the [`image_preprocessing.py`](image_preprocessing.py) file, we have implemented functions to apply distortions, warping, and various other transformations. These processes create diverse training images, enhancing the robustness of our models against real-world variations in musical scores.
+In the [`image_preprocessing.py`](image_preprocessing.py) file, we have implemented functions to apply distortions, warping, and other transformations.
 
 ### Annotation Adjustment
 For symbols without explicit relative positions, we:
@@ -92,7 +92,7 @@ The algorithm in [`compute_barline_bboxs.py`](compute_barline_bboxs.py) detects 
 
 ## YOLO Models Results
 
-The results section for YOLO includes two parts: one for symbol detection & classification, and the other for measure detection. We have trained four models, three for symbol detection and classification, and one for measure detection. For symbol detection, we trained YOLOv8n (500 + 500 epochs), YOLOv8m (500 epochs), and YOLOv8x (500). We achieved highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of ... across all classes using YOLOv8x. After observing improvements in the training efficiency as the models' number of parameters increased, we decided to use YOLOv8x for measure detection. For measure detection we trained one model using YOLOv8x(500 epochs). 
+The results section for YOLO includes two parts: one for symbol detection & classification, and the other for measure detection. We have trained four models, three for symbol detection and classification, and one for measure detection. For symbol detection, we trained YOLOv8n (500 + 500 epochs), YOLOv8m (500 epochs), and YOLOv8x (500) and for measure detection we trained one model using YOLOv8m for500 epochs. 
 
 ### Symbol Detection & Classification Using YOLO:
 
@@ -110,10 +110,10 @@ The confusion matrix below represents the performance of the YOLOv8n model after
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_symbols_v8n/confusion_matrix_normalized_1000epochs.png" width="500" alt="Normalized Confusion Matrix for Symbol Detection using YOLOv8n"/>
+    <img src="images/yolo_for_symbols_v8x/confusion_matrix_normalized.png" width="500" alt="Normalized Confusion Matrix for Symbol Detection using YOLOv8x After 500 Epcohs"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection using YOLOv8x (This is from YOLOv8n, I will change this by tomorrow evening.)</em></p>
+<p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection using YOLOv8x</em></p>
 
 After training the YOLOv8n model for 500 epochs for approximately 9 hours, here are the losses:
 
@@ -168,33 +168,80 @@ This took approximately 9 hours, similar to the YOLOv8n model, which was expecte
   <em>Figure 8 and 9: Precision and Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs (by tomorrow evening)</em>
 </p>
 
-Above plots shows that training with YoloV8x model seems to yield the most efficent losses per each epoch, although its training time is considereably higher than the YOLOv8n and YOLOv8m models which was approximately took ... hours. And here is a sample predicted from test set using this model:
+Above plots shows that training with YOLOV8x model seems to yield the most efficent losses per each epoch, achieving 0.998 precision at 0.992 confidence level and while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 We achieved highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5, which is 0.728, across all classes after training YOLOv8x for 500 epochs. It is important to note the trade-off between training efficiency and training time. Although YOLOv8x resulted in the best models after 500 epochs, its training time is considerably higher than that of the YOLOv8n and YOLOv8m models. Training YOLOv8x took around 32 hours, approximately 3-4 times more than YOLOv8m.
+
+And here is a sample predicted from test set using the YOLOv8x:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_symbols_v8n/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png""/>
+    <img src="images/yolo_for_symbols_v8x/lg-110143839-aug-emmentaler-.png" width="600" alt="Predicted Sample From Test Set Using the YOLOv8x"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 10: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x (Sample is predicted using YOLOv8n, YOLOv8x is still on training, I will change this by tomorrow evening.)</em></p>
+<p align="center"><em>Figure 10: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x </em></p>
+
+The most successful classes, based on mAP50 using the YOLOv8x:
+
+<div align="center">
+  
+| Class                    | Instances | Precision | Recall | mAP50 |
+| ------------------------ | --------- | --------- | ------ | ----- |
+| restHBar                 | 27        | 1.000     | 0.998  | 0.995 |
+| segno                    | 55        | 0.984     | 1.000  | 0.995 |
+| coda                     | 49        | 0.950     | 1.000  | 0.995 |
+| clefG                    | 2203      | 0.999     | 0.999  | 0.995 |
+| clefF                    | 1488      | 0.998     | 0.994  | 0.995 |
+| tremolo4                 | 13        | 0.872     | 1.000  | 0.995 |
+| timeSig0                 | 83        | 0.897     | 1.000  | 0.994 |
+| clefCAlto                | 255       | 0.996     | 0.988  | 0.993 |
+| clefCTenor               | 167       | 0.989     | 0.988  | 0.993 |
+| rest64th                 | 93        | 0.963     | 0.989  | 0.991 |
+
+</div>
+
+</p>
+<p align="center"><em>Figure 11: Top 10 Most Accurate Classes by mAP50 </em></p>
+
+On the other end of the spectrum, the worst-performing classes highlight significant model struggles. The "stem" class, which accounts for approximately 26.6% of total instances, has precision and recall values of 0.0, leading to an mAP50 of 0.0. Similarly, "tuplet9," "ledgerLine," and "articTenutoBelow" also have mAP50 values of 0.0. These poor performances drag down the model's overall effectiveness and suggest the need for adjustments in image size, resolution, training hyperparameters, or additional training data.
+
+<div align="center">
+  
+| Class                   | Instances | Precision | Recall | mAP50 |
+| ----------------------- | --------- | --------- | ------ | ----- |
+| tuplet9                 | 1         | 0.000     | 0.000  | 0.000 |
+| ledgerLine              | 23809     | 1.000     | 0.000  | 0.000 |
+| stem                    | 65062     | 0.000     | 0.000  | 0.000 |
+| articTenutoBelow        | 27        | 0.000     | 0.000  | 0.000 |
+| articStaccatissimoAbove | 59        | 0.000     | 0.000  | 0.000 |
+| articStaccatissimoBelow | 89        | 0.540     | 0.011  | 0.097 |
+| tremolo2                | 16        | 0.622     | 0.125  | 0.156 |
+| articTenutoAbove        | 82        | 0.637     | 0.061  | 0.172 |
+| flag32ndDown            | 239       | 0.939     | 0.059  | 0.209 |
+| articStaccatoBelow      | 503       | 0.926     | 0.038  | 0.261 |
+
+</div>
+
+</p>
+<p align="center"><em>Figure 12: Classes with the Lowest Detection Performance </em></p>
 
 ### Measure Detection Using YOLO
-Lastly, we trained a YOLOv8x model for 500 epochs to detect only the measures after seeing it is outperforming the others, and here is the results
+Lastly, we trained a YOLOv8m model for 500 epochs to detect only the measures, and here is the results
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_measures_v8x/results.png" width="600" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
+    <img src="images/yolo_for_measures_v8m/results.png" width="600" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 11: Measure Detection Using YOLOv8x After 500 Epochs (by tomorrow evening) </em></p>
+<p align="center"><em>Figure 13: Measure Detection Using YOLOv8m After 500 Epochs (by tomorrow morning) </em></p>
 
 And here is a sample predicted from test set using this model:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_measures_v8x/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x"/>
+    <img src="images/yolo_for_measures_v8m/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 12: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x (by tomorrow evening) </em></p>
+<p align="center"><em>Figure 14: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8m (by tomorrow morning)</em></p>
+</p>
 
 ## Faster R-CNN Models Results
 
@@ -203,12 +250,15 @@ And here is a sample predicted from test set using this model:
     <img src="images/image_1.png" width="400" alt="Symbol Classification Using R-CNN"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 13: Symbol Classification Using R-CNN</em></p>
+<p align="center"><em>Figure 15: Symbol Classification Using R-CNN</em></p>
 
 ## Future Work
 To further enhance our optical music recognition system, we plan to focus on several key areas:
-- **Training Set Refinement**: The variability in training image quality, particularly issues with cramped spacing in some scores, indicates a need to refine our training set. By selecting or creating images with cleaner, more consistent spacing, we can improve model training and performance.
-- **End-to-End OMR System**: The next major goal is to develop an end-to-end optical music recognition system that converts music scores into XML files. This includes processing not only traditionally scanned images but also photographs that are not perfectly aligned or warped. Enhancements in image segmentation will be crucial to achieve this goal.
+- Train more epochs using YOLOv8x
+- Training Set Refinement - consider larger dataset, or implementation of oriented bounding boxes
+- Create an ensemble of YOLO models, to classify symbols by relative symbol size
+- Enhance, measure segmentation to capture notes positioned above or below the staff.
+- End-to-End OMR System: The next major goal is to translate the classified symbols into machine readable Kern or XML music format using LSTM or Transformer architectures.
 
 ## Contributors
 [Maricela Abarca](https://github.com/myabarca)  
@@ -218,4 +268,4 @@ To further enhance our optical music recognition system, we plan to focus on sev
 [Prof. Mustafa Hajij](https://www.mustafahajij.com/)
 
 ## Acknowledgements
-We extend our gratitude to the creators of the DeepScores dataset for their comprehensive collection of musical symbols and annotations, which significantly contributed to the depth of our analysis and training processes.
+We extend our gratitude to the creators of the DeepScores dataset for their comprehensive collection of musical symbols and annotations.
