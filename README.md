@@ -107,7 +107,7 @@ First, let's see the histogram chart showing the class imbalance in the data:
 </p>
 <p align="center"><em>Figure 1: Histogram of Symbol Class Frequency</em></p>
 
-The confusion matrix below represents the performance of the YOLOv8x model after 500 epochs, highlighting the prediction accuracy across various symbol classes. Each cell shows the proportion of predictions made for a predicted class versus the true class, with a perfect prediction represented by a 1.0 in the diagonal cells. Please refer to the provided class index [file](deep_scores.yaml) to determine which symbol each class index corresponds to.
+The confusion matrix below represents the performance of the YOLOv8x model after 500 epochs, highlighting the prediction accuracy across various symbol classes. Each cell shows the proportion of predictions made for a predicted class versus the true class, with a perfect prediction represented by a 1.0 in the diagonal cells. Please refer to the provided class index [file](yolo/deep_scores.yaml) to determine which symbol each class index corresponds to.
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
