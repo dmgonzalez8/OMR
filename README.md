@@ -22,22 +22,22 @@
 - [Acknowledgements](#acknowledgements)
 
 ## Overview
-This project focuses on training models to detect and classify musical symbols using the <a href="https://zenodo.org/records/4012193">The DeepScoresV2</a> dataset.
+This project focuses on training models to detect and classify musical symbols using the <a href="https://zenodo.org/records/4012193">DeepScoresV2</a> dataset.
 
 ## Dataset
-<a href="https://zenodo.org/records/4012193">The DeepScoresV2</a>  dataset, comprising high-resolution images of musical scores annotated with precise symbol locations and types, serves as the training and validation ground for our models. This dataset is pivotal for training due to its diversity in musical notation and complexity.
+The <a href="https://zenodo.org/records/4012193">DeepScoresV2</a> dataset, comprising high-resolution images of musical scores annotated with precise symbol locations and types, serves as the training and validation ground for our models. This dataset is pivotal for training due to its diversity in musical notation and complexity.
 
 ## Models and Techniques
-Download the latest models from Google Drive [here.](https://drive.google.com/drive/folders/13Z64ReEJGlMnCqPkA-dcCD8tzdtvLyqO?usp=sharing)
+Download the latest models from Google Drive [here](https://drive.google.com/drive/folders/13Z64ReEJGlMnCqPkA-dcCD8tzdtvLyqO?usp=sharing).
 
 ### YOLO Training
-We have employed You Only Look Once (YOLO) model for two tasks:
+We have employed the You Only Look Once (YOLO) models for two tasks:
 
 - **YOLO for Symbols**
 - **YOLO for Measures**
 
 #### YOLO Training Details
-We trained our models using the following configurations:
+We trained our models using the following configuration:
 - **Models**: `YOLOv8n.pt`, `YOLOv8m.pt`, `YOLOv8x.pt`
 - **Data Configuration**: `deep_scores.yaml`
 - **Batch Size**: 5
@@ -71,10 +71,10 @@ For our Faster R-CNN model, we trained with various optimizers under the followi
 To standardize our dataset, we:
 - Scaled all images to a median size of **1960x2772** and added padding as necessary to maintain aspect ratio integrity.
 - Computed absolute coordinates for bounding boxes in both YOLO format and oriented 4-corner-coordinate format.
-- Adjusted bounding boxes for new image sizes, considering different scaling factors for x and y axes due to int rounding, despite their negligible differences.
+- Adjusted bounding boxes for new image sizes, considering different scaling factors for x and y axes due to int rounding.
 
 ### Advanced Image Manipulations
-In the [`image_preprocessing.py`](image_preprocessing.py) file, we have implemented functions to apply distortions, warping, and other transformations.
+In the [`image_preprocessing.py`](image_preprocessing.py) file, we have implemented functions to apply distortion, warping, and other transformations.
 
 ### Annotation Adjustment
 For symbols without explicit relative positions, we:
@@ -93,11 +93,11 @@ The algorithm in [`compute_barline_bboxs.py`](compute_barline_bboxs.py) detects 
 
 ## YOLO Models Results
 
-The results section for YOLO includes two parts: one for symbol detection & classification, and the other for measure detection. We have trained four models, three for symbol detection and classification, and one for measure detection. For symbol detection, we trained YOLOv8n (500 + 500 epochs), YOLOv8m (500 epochs), and YOLOv8x (500) and for measure detection we trained one model using YOLOv8m for500 epochs. 
+The results section for YOLO includes two parts: one for symbol detection & classification, and the other for measure detection. We have trained four models, three for symbol detection and classification, and one for measure detection. For symbol detection, we trained YOLOv8n (500 + 500 epochs), YOLOv8m (500 epochs), and YOLOv8x (500) and for measure detection we trained one model using YOLOv8m for 500 epochs. 
 
 ### Symbol Detection & Classification Using YOLO:
 
-First let's see the histogram chart showing the class imbalance in the data:
+First, let's see the histogram chart showing the class imbalance in the data:
 
 
 <p align="center">
@@ -107,20 +107,20 @@ First let's see the histogram chart showing the class imbalance in the data:
 </p>
 <p align="center"><em>Figure 1: Histogram of Symbol Class Frequency</em></p>
 
-The confusion matrix below represents the performance of the YOLOv8n model after 1000 epochs, highlighting the prediction accuracy across various symbol classes. Each cell shows the proportion of predictions made for a predicted class versus the true class, with a perfect prediction represented by a 1.0 in the diagonal cells. Please refer to the provided class index [file](deep_scores.yaml) to determine which symbol each class index corresponds to.
+The confusion matrix below represents the performance of the YOLOv8x model after 500 epochs, highlighting the prediction accuracy across various symbol classes. Each cell shows the proportion of predictions made for a predicted class versus the true class, with a perfect prediction represented by a 1.0 in the diagonal cells. Please refer to the provided class index [file](deep_scores.yaml) to determine which symbol each class index corresponds to.
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_symbols_v8x/confusion_matrix_normalized.png" width="500" alt="Normalized Confusion Matrix for Symbol Detection using YOLOv8x After 500 Epcohs"/>
+    <img src="images/yolo_for_symbols_v8x/confusion_matrix_normalized.png" width="500" alt="Normalized Confusion Matrix for Symbol Detection Using YOLOv8x After 500 Epcohs"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection using YOLOv8x</em></p>
+<p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection Using YOLOv8x</em></p>
 
 After training the YOLOv8n model for 500 epochs for approximately 9 hours, here are the losses:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_symbols_v8n/losses_500epochs.png" width="400" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
+    <img src="images/yolo_for_symbols_v8n/losses_500epochs.png" width="400" alt="Symbol Classification Using YOLOv8n After 500 Epochs"/>
   </kbd>
 </p>
 <p align="center"><em>Figure 3: Symbol Classification Using YOLOv8n After 500 Epochs</em></p>
@@ -166,19 +166,19 @@ This took approximately 9 hours, similar to the YOLOv8n model, which was expecte
   </kbd>
 </p>
 <p align="center">
-  <em>Figure 8 and 9: Precision and Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs (by tomorrow evening)</em>
+  <em>Figure 8 and 9: Precision and Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs</em>
 </p>
 
-Above plots shows that training with YOLOV8x model seems to yield the most efficent losses per each epoch, achieving 0.998 precision at 0.992 confidence level and while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 We achieved highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5, which is 0.728, across all classes after training YOLOv8x for 500 epochs. It is important to note the trade-off between training efficiency and training time. Although YOLOv8x resulted in the best models after 500 epochs, its training time is considerably higher than that of the YOLOv8n and YOLOv8m models. Training YOLOv8x took around 32 hours, approximately 3-4 times more than YOLOv8m.
+The above plots show that training with YOLOv8x model seems to yield the most efficient losses per each epoch, achieving 0.998 precision at 0.992 confidence level and while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 We achieved the highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5, which is 0.728, across all classes after training YOLOv8x for 500 epochs. It is important to note the trade-off between training efficiency and training time. Although YOLOv8x resulted in the best models after 500 epochs, its training time is considerably longer than that of the YOLOv8n and YOLOv8m models. Training YOLOv8x took around 32 hours, approximately 3-4 times more than YOLOv8m.
 
-And here is a sample predicted from test set using the YOLOv8x:
+And here is a sample prediction from test set using the YOLOv8x:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_symbols_v8x/lg-110143839-aug-emmentaler-.png" width="600" alt="Predicted Sample From Test Set Using the YOLOv8x"/>
+    <img src="images/yolo_for_symbols_v8x/lg-110143839-aug-emmentaler-.png" width="600" alt="Predicted Sample From Test Set 'lg-110143839-aug-gonville-.png' Using the YOLOv8x"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 10: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x </em></p>
+<p align="center"><em>Figure 10: Predicted Sample From Test Set 'lg-110143839-aug-gonville-.png' Using the YOLOv8x </em></p>
 
 The most successful classes, based on mAP50 using the YOLOv8x:
 
@@ -202,7 +202,7 @@ The most successful classes, based on mAP50 using the YOLOv8x:
 </p>
 <p align="center"><em>Figure 11: Top 10 Most Accurate Classes by mAP50 </em></p>
 
-On the other end of the spectrum, the worst-performing classes highlight significant model struggles. The "stem" class, which accounts for approximately 26.6% of total instances, has precision and recall values of 0.0, leading to an mAP50 of 0.0. Similarly, "tuplet9," "ledgerLine," and "articTenutoBelow" also have mAP50 values of 0.0. These poor performances drag down the model's overall effectiveness and suggest the need for adjustments in image size, resolution, training hyperparameters, or additional training data.
+On the other end of the spectrum, the worst-performing classes highlight significant model struggles. The "stem" class, which accounts for approximately 26.6% of the total instances, has precision and recall values of 0.0, leading to an mAP50 of 0.0. Similarly, "tuplet9," "ledgerLine," and "articTenutoBelow" also have mAP50 values of 0.0. These poor performances drag down the model's overall effectiveness and suggest the need for adjustments in image size, resolution, training hyperparameters, or additional training data.
 
 <div align="center">
   
@@ -225,7 +225,7 @@ On the other end of the spectrum, the worst-performing classes highlight signifi
 <p align="center"><em>Figure 12: Classes with the Lowest Detection Performance </em></p>
 
 ### Measure Detection Using YOLO
-Lastly, we trained a YOLOv8m model for 500 epochs to detect only the measures, and here is the results
+Lastly, we trained a YOLOv8m model for 500 epochs to detect only the measures, and here are the results:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
@@ -234,31 +234,31 @@ Lastly, we trained a YOLOv8m model for 500 epochs to detect only the measures, a
 </p>
 <p align="center"><em>Figure 13: Loss Plots for Measure Detection Using YOLOv8m </em></p>
 
-And here is a sample predicted from test set using this model:
+And here is a sample prediction from the test set using this model:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_measures_v8m/lg-140707771-aug-lilyjazz--page-4.png" width="600" alt="Predicted Sample From Test Set "lg-140707771-aug-lilyjazz--page-4.png" Using the YOLOv8m"/>
+    <img src="images/yolo_for_measures_v8m/lg-140707771-aug-lilyjazz--page-4.png" width="600" alt="Predicted Sample From Test Set 'lg-140707771-aug-lilyjazz--page-4.png' Using the YOLOv8m"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 14: Predicted Sample From Test Set "lg-140707771-aug-lilyjazz--page-4.png" Using YOLOv8m</em></p>
+<p align="center"><em>Figure 14: Predicted Sample From Test Set 'lg-140707771-aug-lilyjazz--page-4.png' Using YOLOv8m</em></p>
 </p>
 
 ## Faster R-CNN Models Results
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/image_1.png" width="400" alt="Symbol Classification Using R-CNN"/>
+    <img src="images/image_1.png" width="400" alt="Symbol Classification Using Faster R-CNN"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 15: Symbol Classification Using R-CNN</em></p>
+<p align="center"><em>Figure 15: Symbol Classification Using Faster R-CNN</em></p>
 
 ## Future Work
 
-- Training Set Refinement: Consider a larger dataset, implement oriented bounding boxes, and ensure each class is present in both train and test sets.
-- Train more epochs using YOLOv8x and YOLOv8m
-- Create an ensemble of YOLO models, to classify symbols by relative symbol size
-- Enhance, measure segmentation to capture notes positioned above or below the staff.
+- Training Set Refinement: Consider a larger dataset, implement oriented bounding boxes, and ensure each class is present in both the train and test sets.
+- Train more epochs using YOLOv8x and YOLOv8m.
+- Create an ensemble of YOLO models to classify symbols by relative symbol size.
+- Enhance measure segmentation to capture notes positioned above or below the staff lines.
 - End-to-End OMR System: The next major goal is to translate the classified symbols into machine readable Kern or XML music format using LSTM or Transformer architectures.
 
 ## Contributors
@@ -269,4 +269,4 @@ And here is a sample predicted from test set using this model:
 [Prof. Mustafa Hajij](https://www.mustafahajij.com/)
 
 ## Acknowledgements
-We extend our gratitude to the creators of the DeepScores dataset for their comprehensive collection of musical symbols and annotations.
+We extend our gratitude to the creators of the DeepScoresV2 dataset for their comprehensive collection of musical symbols and annotations.
