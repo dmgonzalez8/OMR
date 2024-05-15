@@ -229,19 +229,19 @@ Lastly, we trained a YOLOv8m model for 500 epochs to detect only the measures, a
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_measures_v8m/results.png" width="600" alt="Symbol Classification Using yolov8n After 500 Epochs"/>
+    <img src="images/yolo_for_measures_v8m/losses.png" width="600" alt="Loss Plots for Measure Detection Using YOLOv8m"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 13: Measure Detection Using YOLOv8m After 500 Epochs (by tomorrow morning) </em></p>
+<p align="center"><em>Figure 13: Loss Plots for Measure Detection Using YOLOv8m </em></p>
 
 And here is a sample predicted from test set using this model:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
-    <img src="images/yolo_for_measures_v8m/lg-110143839-aug-gonville-.png" width="600" alt="Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8x"/>
+    <img src="images/yolo_for_measures_v8m/lg-140707771-aug-lilyjazz--page-4.png" width="600" alt="Predicted Sample From Test Set "lg-140707771-aug-lilyjazz--page-4.png" Using the YOLOv8m"/>
   </kbd>
 </p>
-<p align="center"><em>Figure 14: Predicted Sample From Test Set "lg-110143839-aug-gonville-.png" Using the YOLOv8m (by tomorrow morning)</em></p>
+<p align="center"><em>Figure 14: Predicted Sample From Test Set "lg-140707771-aug-lilyjazz--page-4.png" Using YOLOv8m</em></p>
 </p>
 
 ## Faster R-CNN Models Results
