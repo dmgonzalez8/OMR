@@ -28,6 +28,7 @@ This project focuses on training models to detect and classify musical symbols u
 <a href="https://zenodo.org/records/4012193">The DeepScoresV2</a>  dataset, comprising high-resolution images of musical scores annotated with precise symbol locations and types, serves as the training and validation ground for our models. This dataset is pivotal for training due to its diversity in musical notation and complexity.
 
 ## Models and Techniques
+Download the latest models from Google Drive [here.](https://drive.google.com/drive/folders/13Z64ReEJGlMnCqPkA-dcCD8tzdtvLyqO?usp=sharing)
 
 ### YOLO Training
 We have employed You Only Look Once (YOLO) model for two tasks:
