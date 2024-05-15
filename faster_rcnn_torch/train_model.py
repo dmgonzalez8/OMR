@@ -38,8 +38,8 @@ import argparse
 from torch.nn import DataParallel
 import warnings
 warnings.filterwarnings("ignore")
-from preprocess_data import *
-from image_preprocessing import *
+# from faster_rcnn_torch.preprocess_data import *
+# from faster_rcnn_torch.image_preprocessing import *
 
 """start helper functions for model"""
 def get_model_densenet(num_classes):

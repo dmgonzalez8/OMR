@@ -1,68 +1,53 @@
-import json
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import math
-import numpy as np
-import re
-from shapely.geometry import Polygon, LineString, Point
+import argparse
 import os
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision.datasets import CocoDetection
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-import torchvision.transforms as T
-from torch.optim import SGD, Adam, Adadelta
-import torchvision
-from torchvision.models.detection import FasterRCNN
-from torchvision.models.detection.rpn import AnchorGenerator
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import pandas as pd
 from torchvision import transforms
-from torch.utils.data._utils.collate import default_collate
-import torchvision
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
-from torchvision.transforms import functional as F
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import random
-from math import radians, cos, sin
-import cv2
-import ast
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from PIL import Image, ImageDraw, ImageFont
+from datetime import datetime
+from dataset import MusicScoreDataset  # Make sure to define this in your imports
 
-# Define the backbone
-backbone = resnet_fpn_backbone('resnet50', pretrained=True)
-# Create the model
-model = FasterRCNN(backbone, num_classes=num_classes)  # num_classes includes the background
-model.load_state_dict(torch.load('./exported_model.pt'))
-model.eval()  # Set the model to evaluation mode
+def get_model(num_classes, checkpoint_path=None):
+    model = fasterrcnn_resnet50_fpn(pretrained=True if checkpoint_path is None else False)
+    num_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = FastRCNNPredictor(num_features, num_classes)
 
-# Convert DataFrame to a dictionary
-label_dict = dict(zip(unique_labels['label'], unique_labels['name']))
+    if checkpoint_path:
+        model.load_state_dict(torch.load(checkpoint_path, map_location=torch.device('cpu')))
+    
+    return model
 
-# Load the image
-image_path = './data/ds2_dense/images/lg-101766503886095953-aug-beethoven--page-4.png'
-image = Image.open(image_path).convert("L")
-image_tensor = F.to_tensor(image).unsqueeze(0)  # Convert image to tensor
+def main(args):
+    unique_labels = pd.read_pickle(args.unique_labels)
+    num_classes = len(unique_labels) + 1
 
-# Perform prediction
-with torch.no_grad():
-    predictions = model(image_tensor)
+    model = get_model(num_classes, args.checkpoint)
+    model.eval()
 
-image = Image.open(image_path).convert("RGB")
-# Draw predictions on the image
-draw = ImageDraw.Draw(image)
-# Specify a larger font size for the annotations
-font = ImageFont.load_default()  # Currently, load_default does not support size adjustment in PIL
+    dataset = MusicScoreDataset(pd.read_pickle(args.dataframe), args.images_dir, transforms.Compose([
+        transforms.ToTensor(), 
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ]))
 
-for element in range(len(predictions[0]['boxes'])):
-    boxes = predictions[0]['boxes'][element].cpu().numpy().astype(int)
-    label_id = predictions[0]['labels'][element].item()
-    score = predictions[0]['scores'][element].item()
+    for idx in range(len(dataset)):
+        image, target = dataset[idx]
+        prediction = model([image])
 
-    # Look up the label name using the label dictionary
-    label_name = label_dict.get(label_id, 'Unknown')  # Default to 'Unknown' if not found
+        draw = ImageDraw.Draw(image)
+        for element in prediction[0]['boxes']:
+            draw.rectangle([(element[0], element[1]), (element[2], element[3])], outline='red', width=3)
+        
+        image.save(os.path.join(args.output_dir, f"output_{idx}.png"))
 
-    if score > 0.5:  # filter out low-confidence predictions
-        draw.rectangle([(boxes[0], boxes[1]), (boxes[2], boxes[3])], outline='red', width=3)
-        draw.text((boxes[0], boxes[1]-40), f'{label_name}:{score:.2f}', fill='blue', font=font)  
-# Save or show image
-image.show()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run a pre-trained Faster R-CNN model on annotated musical scores.")
+    parser.add_argument("--checkpoint", help="Path to the model checkpoint file.", required=True)
+    parser.add_argument("--dataframe", help="Path to the pandas dataframe pickle file.", required=True)
+    parser.add_argument("--images_dir", help="Directory containing images.", required=True)
+    parser.add_argument("--unique_labels", help="Pickle file containing unique labels.", required=True)
+    parser.add_argument("--output_dir", help="Directory to save output images.", required=True)
+    
+    args = parser.parse_args()
+    main(args)

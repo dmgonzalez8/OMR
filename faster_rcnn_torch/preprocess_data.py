@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 from shapely.geometry import Polygon, LineString, Point
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import cv2
-from image_preprocessing import *
+from faster_rcnn_torch.image_preprocessing import *
 import multiprocessing
 
 """start of helper functions for remapping old cat_id to new label"""
