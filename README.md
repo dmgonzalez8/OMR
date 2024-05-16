@@ -116,7 +116,7 @@ The confusion matrix below represents the performance of the YOLOv8x model after
 </p>
 <p align="center"><em>Figure 2: Normalized Confusion Matrix for Symbol Detection Using YOLOv8x</em></p>
 
-After training the YOLOv8n model for 500 epochs for approximately 9 hours, here are the losses:
+After training the YOLOv8n model for 500 epochs for approximately 8.8 hours, here are the losses:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888;">
@@ -140,7 +140,7 @@ Both training and validation box loss, as well as classification loss, decrease 
   <em>Figure 4 and 5: Precision and Precision-Recall Curves of YOLOv8n Model for Symbols Detection After 1000 Epochs</em>
 </p>
 
-The Precision-Confidence Curve now achieves a precision of 0.95 at a confidence level of 0.990 for all classes, while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 of 0.560 across all classes. These values indicate an improvement from the previous results observed at the end of the initial 500 epochs, demonstrating that the model remains open to training even though the decrease in loss is quite slow compared to the first epochs. Please see the [documentation](/images/yolo_for_symbols_v8n/) to see the other plots using YOLOv8n. After realizing that it becomes harder to improve the models with each epoch, we decided to use the YOLOv8m model, which has approximately 25.9 million parameters—about 8 times more than the YOLOv8n model with 3.2 million parameters. Using the same settings, we trained it for 500 epochs and observed the following results:
+These values indicate an improvement from the previous results observed at the end of the initial 500 epochs, demonstrating that the model remains open to training even though the decrease in loss is quite slow compared to the first epochs. Please see the [documentation](/images/yolo_for_symbols_v8n/) to see the other plots using YOLOv8n. Remarkably, as the number of epochs increases, the reduction in loss decelerates. Using the same settings, we trained YOLOv8m, which has approximately 25.9 million parameters—about 8 times more than the YOLOv8n model—for 500 epochs and observed the following results:
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
@@ -155,7 +155,7 @@ The Precision-Confidence Curve now achieves a precision of 0.95 at a confidence 
   <em>Figure 6 and 7: Precision and Precision-Recall Curves of YOLOv8m Model for Symbols Detection After 500 Epochs</em>
 </p>
 
-This took approximately 9 hours, similar to the YOLOv8n model, which was expected to have a longer duration based on the documentation from the Ultralytics page. We realized afterward that the YOLOv8n model did not fully utilize the GPU. Please see this [plot](/images/yolo_for_symbols_v8m/losses.png) for their losses. Training for only 500 epochs and observing better results than from 1000 epochs of training with the YOLOv8n model hinted that as the number of parameters increases, training becomes more efficient in this case. Consequently, we decided to try the YOLOv8x model, and here are the results we observed:
+This took approximately 10.7 hours. Please see this [plot](/images/yolo_for_symbols_v8m/losses.png) for the losses. Training for only 500 epochs and observing better results than from 1000 epochs of training with the YOLOv8n model hinted that as the number of parameters increases, training becomes more efficient in this case.
 
 <p align="center">
   <kbd style="border: 1px solid #ccc; box-shadow: 4px 4px 5px #888; margin-right: 10px;">
@@ -169,7 +169,7 @@ This took approximately 9 hours, similar to the YOLOv8n model, which was expecte
   <em>Figure 8 and 9: Precision and Precision-Recall Curves of YOLOv8x Model for Symbols Detection After 500 Epochs</em>
 </p>
 
-The above plots show that training with YOLOv8x model seems to yield the most efficient losses per each epoch, achieving 0.998 precision at 0.992 confidence level and while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5 We achieved the highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5, which is 0.728, across all classes after training YOLOv8x for 500 epochs. It is important to note the trade-off between training efficiency and training time. Although YOLOv8x resulted in the best models after 500 epochs, its training time is considerably longer than that of the YOLOv8n and YOLOv8m models. Training YOLOv8x took around 32 hours, approximately 3-4 times more than YOLOv8m.
+The above plots show that training with YOLOv8x model seems to yield the most efficient losses per each epoch, achieving 0.998 precision at 0.992 confidence level and while the Precision-Recall Curve has a mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5. We achieved the highest mean Average Precision (mAP) at an Intersection Over Union (IOU) of 0.5, which is 0.728, across all classes after training YOLOv8x for 500 epochs. It is important to note the trade-off between training efficiency and training time. Although YOLOv8x resulted in the best models after 500 epochs, its training time is considerably longer than that of the YOLOv8n and YOLOv8m models. Training YOLOv8x took around 32 hours, approximately 3.5 times more than YOLOv8n.
 
 And here is a sample prediction from test set using the YOLOv8x:
 
@@ -256,7 +256,7 @@ And here is a sample prediction from the test set using this model:
 ## Future Work
 
 - Training Set Refinement: Consider a larger dataset, implement oriented bounding boxes, and ensure each class is present in both the train and test sets.
-- Train more epochs using YOLOv8x and YOLOv8m.
+- Train more epochs using YOLOv8m.
 - Create an ensemble of YOLO models to classify symbols by relative symbol size.
 - Enhance measure segmentation to capture notes positioned above or below the staff lines.
 - End-to-End OMR System: The next major goal is to translate the classified symbols into machine readable Kern or XML music format using LSTM or Transformer architectures.
